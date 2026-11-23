@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThinkOS Reseller Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: an operations console. A fixed identity bar, a scrollable tab rail, then
+   one working column of panels; state is carried by pills and stripes, numbers in mono. */
+:root{
+  --bg:#F3F7F2; --surface:#ffffff; --sunk:#EEF6EB; --ink:#13241B; --muted:#55655B; --line:#D5E2D8;
+  --accent:#205C40; --accent-ink:#ffffff; --accent-soft:#E3F1DF;
+  --good:#1d7a46; --warn:#9a5b00; --crit:#b3261e; --warn-soft:#fbefd9; --crit-soft:#fbe6e4; --good-soft:#e1f3e7;
+  --display:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0A1510; --surface:#0F1E17; --sunk:#13281E; --ink:#E6F1EA; --muted:#A3B5A9; --line:#21382C;
+    --accent:#5BCB3F; --accent-ink:#0A1510; --accent-soft:#16301F;
+    --good:#5fcf8d; --warn:#e6ad4f; --crit:#f08a80; --warn-soft:#3a2d12; --crit-soft:#3d1c19; --good-soft:#14301f;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0A1510; --surface:#0F1E17; --sunk:#13281E; --ink:#E6F1EA; --muted:#A3B5A9; --line:#21382C;
+  --accent:#5BCB3F; --accent-ink:#0A1510; --accent-soft:#16301F;
+  --good:#5fcf8d; --warn:#e6ad4f; --crit:#f08a80; --warn-soft:#3a2d12; --crit-soft:#3d1c19; --good-soft:#14301f;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h2{font-size:20px} h3{font-size:15px;letter-spacing:.01em}
+p{margin:0}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+button,select,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header{background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{max-width:1040px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px}
+.mark{width:22px;height:22px;border-radius:5px;background:var(--accent);display:inline-block;position:relative}
+.mark::after{content:"";position:absolute;left:5px;right:5px;top:6px;height:3px;background:var(--accent-ink);box-shadow:0 5px 0 var(--accent-ink)}
+.grow{flex:1}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--muted)}
+select,input[type=text],input[type=number],textarea{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:38px}
+textarea{width:100%;min-height:150px;font-family:var(--mono);font-size:13px;resize:vertical}
+nav{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.tabs{max-width:1040px;margin:0 auto;padding:0 8px;display:flex;gap:2px;overflow-x:auto}
+.tabs a{padding:11px 10px;text-decoration:none;color:var(--muted);white-space:nowrap;border-bottom:3px solid transparent;font-weight:500}
+.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+.notice{max-width:1040px;margin:12px auto 0;padding:0 16px}
+.notice div{background:var(--warn-soft);color:var(--ink);border-left:4px solid var(--warn);padding:8px 12px;border-radius:4px;font-size:13px}
+main{max-width:1040px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.panel > .head{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.two{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.panel{min-width:0}
+@media (min-width:860px){.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.tile{background:var(--sunk);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.tile b{font-family:var(--mono);font-size:22px;font-weight:500}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.item{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.item.warn{border-left-color:var(--warn)} .item.crit{border-left-color:var(--crit)} .item.good{border-left-color:var(--good)} .item.acc{border-left-color:var(--accent)}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)} .pill.acc{background:var(--accent-soft);color:var(--accent)}
+.btn{background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;min-height:38px}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.danger{background:transparent;color:var(--crit);border-color:var(--crit)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap}
+td.r,th.r{text-align:right}
+.steps{display:flex;gap:4px;flex-wrap:wrap}
+.steps span{font-size:12px;padding:3px 8px;border-radius:4px;background:var(--sunk);color:var(--muted)}
+.steps span.done{background:var(--accent-soft);color:var(--accent)}
+.steps span.now{background:var(--accent);color:var(--accent-ink)}
+.plan{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.plan li{display:flex;gap:8px;align-items:flex-start}
+.tick{flex:none;width:18px;height:18px;border-radius:50%;border:2px solid var(--line);margin-top:2px}
+.plan li.done .tick{background:var(--accent);border-color:var(--accent)}
+.plan li.now .tick{border-color:var(--accent)}
+.who{font-size:11px;font-weight:600;padding:1px 6px;border-radius:3px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.who.claude{background:var(--accent-soft);color:var(--accent)} .who.jev{background:var(--warn-soft);color:var(--warn)}
+.meter{height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;min-width:90px;flex:1}
+.meter i{display:block;height:100%;background:var(--accent)}
+.meter.low i{background:var(--warn)}
+.log{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto}
+.log div{display:flex;gap:8px;align-items:baseline;font-size:13px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.log time{font-family:var(--mono);color:var(--muted);flex:none}
+.chat{display:flex;flex-direction:column;gap:8px}
+.bubble{padding:8px 12px;border-radius:8px;background:var(--sunk);white-space:pre-wrap;max-width:65ch}
+.bubble.me{background:var(--accent-soft);align-self:flex-end}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:14px;z-index:20;max-width:90vw}
+.total{font-family:var(--mono);font-size:16px;font-weight:600}
+@media (prefers-reduced-motion:no-preference){.plan li.now .tick{animation:pulse 1s infinite} @keyframes pulse{50%{opacity:.35}}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><span class="mark" aria-hidden="true"></span>ThinkOS Reseller Agent</div>
+    <div class="grow"></div>
+    <div class="field">
+      <label for="reseller">Reseller</label>
+      <select id="reseller"></select>
+    </div>
+  </div>
+</header>
+<nav aria-label="Sections"><div class="tabs" id="tabs"></div></nav>
+<div class="notice"><div>Prototype on sample data. Lock and sensor prices are sample values, loyalty tiers and thresholds are placeholders, and Jev decisions are simulated by rules. Site lists are read by Claude when this page is allowed to ask it.</div></div>
+<main id="app"></main>
+<div id="toast" class="toast" hidden role="status"></div>
+
+<script>
+"use strict";
+const CL = (() => { try { return window.claude || (window.parent !== window ? window.parent.claude : null); } catch (e) { return null; } })();
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const day = n => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+const fmtDate = d => d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" });
+const pct = p => Math.round(p * 100) + "%";
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 3200); }
+
+/* ---------- reference data ---------- */
+const TERR = {
+  AU:{name:"Australia",cur:"AUD",locale:"en-AU",tax:"GST",rate:0.10,level:2,unlock:10,live:"February 2027"},
+  NZ:{name:"New Zealand",cur:"NZD",locale:"en-NZ",tax:"GST",rate:null,level:2,unlock:10,live:"To be set"},
+  SG:{name:"Singapore",cur:"SGD",locale:"en-SG",tax:"GST",rate:null,level:2,unlock:5,live:"To be set"},
+  MY:{name:"Malaysia",cur:"MYR",locale:"en-MY",tax:"SST",rate:null,level:2,unlock:5,live:"To be set"},
+  US:{name:"United States",cur:"USD",locale:"en-US",tax:"State sales tax",rate:null,level:2,unlock:10,live:"May or June 2027"},
+  CA:{name:"Canada",cur:"CAD",locale:"en-CA",tax:"GST, HST or PST",rate:null,level:2,unlock:10,live:"May or June 2027"}
+};
+const PRICE = { lock:89, sensor:129, install:45, onboarding:199, opsSmall:99, opsLarge:190 }; // lock and sensor are sample values
+const RULES = { starter:5, minimum:25, onboardingFrom:5, opsBreak:250 };
+const TIERS = [
+  {name:"Member",from:0,reward:"Weekly briefing and order templates"},
+  {name:"Silver",from:100,reward:"Onboarding fee waived; priority support"},
+  {name:"Gold",from:500,reward:"Volume rebate; priority stock; routed leads"},
+  {name:"Platinum",from:1500,reward:"Higher rebate; co-marketing funds; early access to new hardware"}
+];
+const STATUS = ["Quoted","Approved","Stock allocated","Shipped","Install booked","Live"];
+const JEV = [
+  {key:"route",name:"Routing an inbound message",th:0.90,phase:"Go-live 1"},
+  {key:"triage",name:"Alert triage",th:0.90,phase:"Go-live 2"},
+  {key:"sanity",name:"Order sanity check",th:0.95,phase:"Go-live 3"},
+  {key:"airs",name:"AIRS invoice line",th:0.95,phase:"Go-live 4"},
+  {key:"kit",name:"Kit selection",th:0.90,phase:"Later"},
+  {key:"collect",name:"Collection timing",th:0.92,phase:"Later"},
+  {key:"gate",name:"Autonomy gate",th:0.97,phase:"Last"},
+  {key:"offer",name:"Loyalty offer",th:0.85,phase:"With loyalty"}
+];
+const REF = { rates:{"Bin Map":4,"Operations":8,"Sustainability+":12}, perCustomer:100, perYear:200, payAfter:90, buyWithin:15, promo:10 }; // placeholder amounts
+const RSTAGE = {signed:["Signed up","acc"], potential:["Potential paid","warn"], paid:["Paid","good"], lapsed:["Lapsed","crit"]};
+const LEVELS = {1:"Advise",2:"Prepare",3:"Act within limits",4:"Act and report"};
+
+/* ---------- state ---------- */
+const S = {
+  view:"brief", rid:"solo", seq:1045, draft:null, busy:false, chat:[], chatBusy:false,
+  resellers:{
+    solo:{id:"solo",name:"Solo",terr:"AU",level:2,capOrder:25,capClient:50,active:612,clean:7,typical:40,paused:false},
+    premier:{id:"premier",name:"Premier Waste",terr:"AU",level:3,capOrder:25,capClient:50,active:184,clean:12,typical:20,paused:false}
+  },
+  clients:[
+    {rid:"solo",name:"Bayview Retail Park",bins:238,locks:60,sensors:48,plan:"Operations"},
+    {rid:"solo",name:"Cedar Grove Aged Care",bins:64,locks:30,sensors:12,plan:"Bin Map"},
+    {rid:"solo",name:"Ironbark Logistics Hub",bins:310,locks:120,sensors:90,plan:"Operations"},
+    {rid:"solo",name:"Lakeside Campus",bins:140,locks:80,sensors:52,plan:"Sustainability+"},
+    {rid:"premier",name:"Marina Quay Apartments",bins:96,locks:48,sensors:20,plan:"Operations"},
+    {rid:"premier",name:"Westgate Industrial Estate",bins:180,locks:60,sensors:36,plan:"Operations"},
+    {rid:"premier",name:"Harvest Lane Markets",bins:58,locks:20,sensors:0,plan:"Bin Map"}
+  ],
+  stock:{
+    lock:{name:"GravityLock",onHand:1240,reserved:55,incoming:2000,eta:day(38),weekly:140},
+    sensor:{name:"Fill sensor",onHand:310,reserved:30,incoming:500,eta:day(24),weekly:65}
+  },
+  moves:[
+    {t:day(-6),item:"lock",qty:-48,why:"Shipped, order T-1039",who:"Agent"},
+    {t:day(-3),item:"lock",qty:-30,why:"Shipped, order T-1042",who:"Agent"},
+    {t:day(-3),item:"sensor",qty:-10,why:"Shipped, order T-1042",who:"Agent"},
+    {t:day(-2),item:"lock",qty:25,why:"Reserved, order T-1043",who:"Agent",res:true},
+    {t:day(-1),item:"sensor",qty:20,why:"Reserved, order T-1044",who:"Agent",res:true}
+  ],
+  orders:[
+    {id:"T-1039",rid:"premier",client:"Marina Quay Apartments",locks:48,sensors:0,total:7075.20,status:5,by:"Reseller",t:day(-14)},
+    {id:"T-1042",rid:"solo",client:"Bayview Retail Park",locks:30,sensors:10,total:6059.90,status:3,by:"Reseller",t:day(-5)},
+    {id:"T-1043",rid:"solo",client:"Cedar Grove Aged Care",locks:25,sensors:0,total:3685.00,status:2,by:"Reseller",t:day(-2)},
+    {id:"T-1044",rid:"premier",client:"Westgate Industrial Estate",locks:0,sensors:20,total:4046.90,status:2,by:"Agent, within limits",t:day(-1)}
+  ],
+  bookings:[
+    {id:"B-311",rid:"solo",client:"Bayview Retail Park",type:"Install",when:day(3),crew:"Crew North",devices:40,status:"Confirmed",order:"T-1042"},
+    {id:"B-312",rid:"solo",client:"Bayview Retail Park",type:"Onboarding",when:day(5),crew:"Matter support",devices:0,status:"Confirmed",order:"T-1042"},
+    {id:"B-313",rid:"solo",client:"Cedar Grove Aged Care",type:"Install",when:day(8),crew:"Crew South",devices:25,status:"Proposed",order:"T-1043"},
+    {id:"B-314",rid:"premier",client:"Westgate Industrial Estate",type:"Install",when:day(6),crew:"Crew North",devices:20,status:"Proposed",order:"T-1044"}
+  ],
+  predict:[
+    {rid:"solo",tone:"warn",kind:"Client growth",title:"Bayview Retail Park is 12 bins from the 250-bin break",detail:"238 bins on the map, up 31 in 90 days. Operations moves from $99 to $190 a month above 250.",act:"Draft tier change",p:0.86},
+    {rid:"solo",tone:"crit",kind:"Device failure",title:"14 sensors at Ironbark Logistics Hub will need replacing within 6 weeks",detail:"Battery voltage is falling faster than the fleet average on the 2023 batch.",act:"Prepare replacement order",p:0.91},
+    {rid:"solo",tone:"warn",kind:"Churn risk",title:"Lakeside Campus has 9 devices offline and no login for 34 days",detail:"Three alerts were ignored this month.",act:"Draft check-in note",p:0.72},
+    {rid:"solo",tone:"acc",kind:"Overflow",title:"Loading dock bins at Bayview will reach 90% on Thursday",detail:"Fill is running 18% above the usual week ahead of weekend trade.",act:"Propose collection",p:0.88},
+    {rid:"solo",tone:"warn",kind:"Invoice variance",title:"3 hauler invoice lines for Ironbark disagree with sensor volumes",detail:"Lifts were charged on days the bins read under 20% full.",act:"Queue AIRS dispute",p:0.83},
+    {rid:"premier",tone:"acc",kind:"Reseller demand",title:"You are likely to need 60 locks in the next 30 days",detail:"Based on two open quotes and the same period last year.",act:"Hold stock",p:0.78},
+    {rid:"premier",tone:"warn",kind:"Contamination",title:"Harvest Lane Markets organics bins are opened out of hours most nights",detail:"20 locks are fitted; 38 organics bins are not locked.",act:"Draft lock proposal",p:0.81},
+    {rid:"premier",tone:"acc",kind:"Overflow",title:"Westgate Industrial Estate cardboard bins will fill by Wednesday",detail:"Two neighbouring bins can be combined into one lift.",act:"Propose collection",p:0.9}
+  ],
+  refer:{
+    solo:{code:"SOLO-7Q2K", bank:true, promos:["SOLO10-A41","SOLO10-B77","SOLO10-C02"], list:[
+      {name:"Quarry Road Transfer Station",plan:"Operations",devices:60,stage:"paid",days:112},
+      {name:"Tidewater Hotel Group",plan:"Sustainability+",devices:140,stage:"potential",days:47},
+      {name:"Brightwell Primary School",plan:"Bin Map",devices:10,stage:"potential",days:21},
+      {name:"Kestrel Business Park",plan:"Operations",devices:0,stage:"signed",days:6}]},
+    premier:{code:"PREM-3M9D", bank:false, promos:["PREM10-K15","PREM10-L62"], list:[
+      {name:"Orchard Lane Village",plan:"Bin Map",devices:15,stage:"potential",days:63},
+      {name:"Dockside Cold Storage",plan:"Operations",devices:0,stage:"signed",days:12}]}
+  },
+  log:[
+    {t:day(-1),who:"Jev",text:"Order T-1044 sanity check: normal",p:0.97},
+    {t:day(-1),who:"Jev",text:"Autonomy gate for T-1044: act (existing client, 20 devices, under cap)",p:0.98},
+    {t:day(-1),who:"Claude",text:"Placed order T-1044 for Premier Waste and reserved 20 sensors"},
+    {t:day(-2),who:"Person",text:"Solo approved order T-1043"}
+  ]
+};
+const SAMPLE_LIST = `Client: Sandalwood Shopping Village
+Loading dock: 24 bins, 24 locks, 12 sensors
+Food court back-of-house: 16 bins (8 organics), locks on all, 8 sensors
+North car park: 10 bins, 10 locks
+Tenant corridor B: 6 bins`;
+
+const R = () => S.resellers[S.rid];
+const T = () => TERR[R().terr];
+const money = n => new Intl.NumberFormat(T().locale, {style:"currency",currency:T().cur}).format(n);
+const avail = k => S.stock[k].onHand - S.stock[k].reserved;
+function log(who, text, p){ S.log.unshift({t:new Date(), who, text, p}); }
+function tierOf(n){ let i = 0; TIERS.forEach((t, k) => { if (n >= t.from) i = k; }); return i; }
+
+/* ---------- Claude (optional) ---------- */
+let sample = null;
+(async () => {
+  try { if (CL && CL.use) { sample = await CL.use("sample"); if (sample) render(); } } catch (e) { sample = null; }
+})();
+
+/* ---------- site list reading ---------- */
+function parseLocal(text){
+  const out = {client:"", sites:[], assumptions:[]};
+  text.split(/\n+/).map(l => l.trim()).filter(Boolean).forEach(line => {
+    const c = line.match(/^client\s*[:\-]\s*(.+)$/i);
+    if (c) { out.client = c[1].trim(); return; }
+    const name = (line.split(/:|\s[\u2013-]\s/)[0] || "").trim();
+    const bins = +(line.match(/(\d+)\s*bins?/i) || [])[1] || 0;
+    let locks = line.match(/(\d+)\s*(?:gravity\s*)?locks?/i); locks = locks ? +locks[1] : null;
+    const sensors = +(line.match(/(\d+)\s*sensors?/i) || [])[1] || 0;
+    if (!bins && locks == null && !sensors) return;
+    if (locks == null) {
+      locks = bins;
+      if (!/locks?\s+on\s+all/i.test(line)) out.assumptions.push(`${name}: no lock count given, so one lock per bin was assumed.`);
+    }
+    out.sites.push({name: name || "Site " + (out.sites.length + 1), bins: bins || locks, locks, sensors});
+  });
+  return out;
+}
+async function readList(text){
+  if (sample) {
+    try {
+      const prompt = `You read a waste-bin site list for a smart bin lock and fill sensor order. Extract it as JSON only, with this shape:
+{"client": string, "sites": [{"name": string, "bins": integer, "locks": integer, "sensors": integer}], "assumptions": [string]}
+Rules: one entry per site or area. If a site gives no lock count, set locks equal to its bins and add an assumption sentence naming the site. If it gives no sensor count, set sensors to 0. "Locks on all" means locks equal bins and needs no assumption. If no client name is given use "". Do not invent sites.
+Site list:
+${text}`;
+      const v = await sample.json(prompt, {modelTier:"quick"});
+      if (v && Array.isArray(v.sites) && v.sites.length) {
+        return {by:"Claude", client:String(v.client || ""), assumptions:(v.assumptions || []).map(String),
+          sites:v.sites.map(s => ({name:String(s.name || "Site"), bins:Math.max(0, parseInt(s.bins) || 0), locks:Math.max(0, parseInt(s.locks) || 0), sensors:Math.max(0, parseInt(s.sensors) || 0)}))};
+      }
+    } catch (e) { /* fall through to the built-in reader */ }
+  }
+  return Object.assign({by:"Built-in reader"}, parseLocal(text));
+}
+
+/* ---------- quoting and checks ---------- */
+function price(sites, install){
+  const locks = sites.reduce((a, s) => a + s.locks, 0), sensors = sites.reduce((a, s) => a + s.sensors, 0), bins = sites.reduce((a, s) => a + s.bins, 0);
+  const visits = sites.reduce((a, s) => a + Math.max(s.locks, s.sensors), 0); // one visit per bin fitted; lock and sensor together count once
+  const lines = [];
+  if (locks) lines.push({label:"GravityLock", qty:locks, unit:PRICE.lock, note:"sample price"});
+  if (sensors) lines.push({label:"Fill sensor", qty:sensors, unit:PRICE.sensor, note:"sample price"});
+  if (install && visits) lines.push({label:"Installation", qty:visits, unit:PRICE.install, note:"per bin, lock and sensor in one visit"});
+  if (sensors >= RULES.onboardingFrom) lines.push({label:"Reseller onboarding", qty:1, unit:PRICE.onboarding, note:"5 sensors and above"});
+  const sub = lines.reduce((a, l) => a + l.qty * l.unit, 0);
+  const rate = T().rate || 0, tax = sub * rate;
+  return {locks, sensors, bins, lines, sub, tax, total:sub + tax};
+}
+function buildDraft(read, opts){
+  const r = R(), sites = read.sites.map(s => Object.assign({}, s)), flags = read.assumptions.slice(), left = [];
+  let q = price(sites, opts.install);
+  if (opts.budget && q.total > opts.budget) {
+    for (let i = sites.length - 1; i >= 0 && q.total > opts.budget; i--) {
+      if (sites[i].sensors) { left.push(`${sites[i].sensors} sensors at ${sites[i].name}`); sites[i].sensors = 0; q = price(sites, opts.install); }
+    }
+    if (q.total > opts.budget) flags.push(`Still ${money(q.total - opts.budget)} over budget after removing sensors. Locks were kept; this needs your call.`);
+  }
+  if (q.locks && q.locks < RULES.starter) flags.push(`Only ${q.locks} locks: the five-lock starter pack is the smallest purchase.`);
+  else if (q.locks && q.locks < RULES.minimum) flags.push(`${q.locks} locks is under the 25-lock customer minimum, so this goes out on starter-pack terms.`);
+  if (opts.install && q.sensors && q.locks) flags.push("Installation is $45 per bin, assuming each sensor goes on a bin that is also getting a lock. A ThinkLid fitted in the same visit adds nothing; a later visit is $45.");
+  const plan = q.bins > RULES.opsBreak ? {name:"Operations", fee:PRICE.opsLarge, why:`${q.bins} bins, above 250`} : {name:"Operations", fee:PRICE.opsSmall, why:`${q.bins} bins, up to 250`};
+  const map = q.locks >= RULES.starter ? "Bin Map is free with 5 or more locks." : "Bin Map is not earned until 5 locks are purchased.";
+  const client = (opts.client || read.client || "New client").trim();
+  const existing = S.clients.some(c => c.rid === r.id && c.name.toLowerCase() === client.toLowerCase());
+  const stock = ["lock","sensor"].map(k => { const need = k === "lock" ? q.locks : q.sensors, a = avail(k); return {k, need, a, ok:need <= a, eta:S.stock[k].eta}; }).filter(x => x.need);
+  // Jev decisions, simulated by rules for this prototype
+  const devices = q.locks + q.sensors, ratio = devices / r.typical;
+  const dup = S.orders.some(o => o.rid === r.id && o.status < 5 && o.status >= 0 && o.client.toLowerCase() === client.toLowerCase() && o.locks === q.locks && o.sensors === q.sensors);
+  const pn = dup ? 0.12 : clamp(1 - Math.abs(Math.log2(ratio || 0.01)) * 0.09, 0.4, 0.99);
+  const sanity = dup ? {label:"Likely duplicate", p:0.88, ok:false} : {label: pn >= JEV[2].th ? "Normal" : "Unusual size for this reseller", p:pn, ok:pn >= JEV[2].th};
+  const why = [];
+  if (r.paused) why.push("Agent actions are paused for this reseller");
+  if (r.level < 3) why.push(`Autonomy is level ${r.level} (${LEVELS[r.level]})`);
+  if (!existing) why.push("First order for a new client always needs a person");
+  if (devices > r.capOrder) why.push(`${devices} devices is over the ${r.capOrder}-device order cap`);
+  if (!sanity.ok) why.push("The sanity check did not pass as normal");
+  if (stock.some(x => !x.ok)) why.push("Stock is short, so delivery dates need your agreement");
+  const act = why.length === 0;
+  return {client, existing, sites, q, flags, left, plan, map, stock, sanity, gate:{act, why, p: act ? 0.98 : 0.99}, by:read.by, install:opts.install, budget:opts.budget};
+}
+function placeOrder(d, by){
+  const id = "T-" + (S.seq++), r = R();
+  S.orders.unshift({id, rid:r.id, client:d.client, locks:d.q.locks, sensors:d.q.sensors, total:d.q.total, status:1, by, t:new Date(), undo: by.startsWith("Agent")});
+  [["lock", d.q.locks],["sensor", d.q.sensors]].forEach(([k, n]) => { if (n) { S.stock[k].reserved += n; S.moves.unshift({t:new Date(), item:k, qty:n, why:"Reserved, order " + id, who:"Agent", res:true}); } });
+  if (!d.existing) S.clients.push({rid:r.id, name:d.client, bins:d.q.bins, locks:0, sensors:0, plan:d.plan.name});
+  if (d.install) S.bookings.unshift({id:"B-" + (300 + S.seq), rid:r.id, client:d.client, type:"Install", when:day(9), crew:"Crew North", devices:d.q.locks + d.q.sensors, status:"Proposed", order:id});
+  if (d.q.sensors >= RULES.onboardingFrom) S.bookings.unshift({id:"B-" + (400 + S.seq), rid:r.id, client:d.client, type:"Onboarding", when:day(11), crew:"Matter support", devices:0, status:"Proposed", order:id});
+  log("Jev", `Order ${id} sanity check: ${d.sanity.label.toLowerCase()}`, d.sanity.p);
+  log("Jev", `Autonomy gate for ${id}: ${d.gate.act ? "act" : "ask reseller"}`, d.gate.p);
+  log(by.startsWith("Agent") ? "Claude" : "Person", `${by.startsWith("Agent") ? "Placed" : r.name + " approved"} order ${id} for ${d.client}; stock reserved and bookings proposed`);
+  return id;
+}
+
+/* ---------- views ---------- */
+const VIEWS = [["brief","Briefing"],["order","New order"],["orders","Orders"],["stock","Inventory"],["bookings","Bookings"],["predict","Predictions"],["loyalty","Loyalty"],["refer","Referrals"],["controls","Controls and log"]];
+const mine = a => a.filter(x => x.rid === S.rid);
+
+function vBrief(){
+  const r = R(), os = mine(S.orders), open = os.filter(o => o.status >= 0 && o.status < 5), ps = mine(S.predict), ti = tierOf(r.active), next = TIERS[ti + 1];
+  const needs = open.filter(o => o.status === 0).length + mine(S.bookings).filter(b => b.status === "Proposed").length;
+  return `
+  <section class="panel">
+    <div class="head"><h2>${esc(r.name)} this week</h2><span class="pill acc">Level ${r.level}: ${LEVELS[r.level]}</span></div>
+    <div class="grid">
+      <div class="tile"><span class="muted small">Orders in flight</span><b>${open.length}</b></div>
+      <div class="tile"><span class="muted small">Waiting on you</span><b>${needs}</b></div>
+      <div class="tile"><span class="muted small">Active devices</span><b>${r.active.toLocaleString()}</b></div>
+      <div class="tile"><span class="muted small">Loyalty tier</span><b>${TIERS[ti].name}</b><span class="small muted">${next ? (next.from - r.active) + " devices to " + next.name : "Top tier"}</span></div>
+    </div>
+  </section>
+  <div class="two">
+    <section class="panel">
+      <div class="head"><h3>Needs attention</h3><a href="#predict" class="small">All predictions</a></div>
+      ${ps.slice(0, 3).map(cardPredict).join("")}
+    </section>
+    <section class="panel">
+      <div class="head"><h3>Orders in flight</h3><a href="#orders" class="small">All orders</a></div>
+      ${open.length ? open.map(o => `<div class="item acc"><div class="row"><b class="num">${o.id}</b><span>${esc(o.client)}</span><span class="grow"></span><span class="pill acc">${STATUS[o.status]}</span></div><span class="small muted">${o.locks} locks, ${o.sensors} sensors. ${esc(o.by)}.</span></div>`).join("") : `<p class="muted">Nothing in flight.</p>`}
+    </section>
+  </div>
+  <section class="panel">
+    <div class="head"><h3>Ask the agent</h3><span class="small muted">${sample ? "Answers come from Claude using this page's order, stock and booking data" : "Needs permission to ask Claude; not available in this view"}</span></div>
+    <div class="chat" id="chat">${S.chat.map(m => `<div class="bubble ${m.me ? "me" : ""}">${esc(m.text)}</div>`).join("")}</div>
+    <form class="row" id="askForm">
+      <input type="text" id="ask" class="grow" style="flex:1;min-width:180px" placeholder="Where is the Bayview order?" ${sample && !S.chatBusy ? "" : "disabled"}>
+      <button class="btn" ${sample && !S.chatBusy ? "" : "disabled"}>${S.chatBusy ? "Thinking" : "Ask"}</button>
+    </form>
+  </section>`;
+}
+function cardPredict(p){
+  const i = S.predict.indexOf(p);
+  return `<div class="item ${p.tone}"><div class="row"><span class="pill ${p.tone}">${p.kind}</span><span class="grow"></span><span class="small muted num">confidence ${pct(p.p)}</span></div>
+    <b>${esc(p.title)}</b><span class="small muted">${esc(p.detail)}</span>
+    <div class="row">${p.done ? `<span class="pill good">Prepared, waiting for your approval</span>` : `<button class="btn ghost" data-act="prep" data-i="${i}">${p.act}</button>`}</div></div>`;
+}
+function vOrder(){
+  const d = S.draft, r = R();
+  const form = `
+  <section class="panel">
+    <div class="head"><h2>Site list to order</h2><span class="small muted">Paste a client's site list in any layout</span></div>
+    <div class="field"><label for="list">Site list</label><textarea id="list" spellcheck="false">${esc(S.listText == null ? SAMPLE_LIST : S.listText)}</textarea></div>
+    <div class="row">
+      <div class="field"><label for="client">Client name (optional)</label><input type="text" id="client" value="${esc(S.clientText || "")}" placeholder="Read from the list"></div>
+      <div class="field"><label for="budget">Client budget, ${T().cur} inc. ${T().tax} (optional)</label><input type="number" id="budget" min="0" step="100" value="${esc(S.budgetText || "")}" placeholder="No limit"></div>
+      <div class="field"><label for="install">Installation</label><select id="install"><option value="1" ${S.installOff ? "" : "selected"}>Include, $45 per bin</option><option value="0" ${S.installOff ? "selected" : ""}>Not needed</option></select></div>
+    </div>
+    <div class="row"><button class="btn" data-act="build" ${S.busy ? "disabled" : ""}>${S.busy ? "Working" : "Build order"}</button><span class="small muted">The agent will show its plan, then stop for your approval unless your limits allow it to act.</span></div>
+  </section>`;
+  if (!d && !S.busy) return form;
+  const steps = ["Read the site list","Count devices and check pack rules","Check live stock and lead times","Price the order","Choose the dashboard tier","Run the order sanity check","Decide who commits"];
+  const whos = ["Claude","Rule","Rule","Rule","Rule","Jev","Jev"];
+  const at = S.busy ? S.step : steps.length;
+  const plan = `<section class="panel"><div class="head"><h3>Agent plan</h3>${d ? `<span class="small muted">List read by ${esc(d.by)}</span>` : ""}</div>
+    <ul class="plan">${steps.map((s, i) => `<li class="${i < at ? "done" : i === at ? "now" : ""}"><span class="tick" aria-hidden="true"></span><span>${s}</span><span class="who ${whos[i].toLowerCase()}">${whos[i]}</span></li>`).join("")}</ul></section>`;
+  if (!d) return form + plan;
+  const q = d.q;
+  return form + plan + `
+  <section class="panel">
+    <div class="head"><h2>Draft order for ${esc(d.client)}</h2><span class="pill ${d.existing ? "acc" : "warn"}">${d.existing ? "Existing client" : "New client"}</span></div>
+    <div class="scroll"><table><thead><tr><th>Site</th><th class="r">Bins</th><th class="r">Locks</th><th class="r">Sensors</th></tr></thead><tbody>
+      ${d.sites.map(s => `<tr><td>${esc(s.name)}</td><td class="r num">${s.bins}</td><td class="r num">${s.locks}</td><td class="r num">${s.sensors}</td></tr>`).join("")}
+      <tr><td><b>Total</b></td><td class="r num"><b>${q.bins}</b></td><td class="r num"><b>${q.locks}</b></td><td class="r num"><b>${q.sensors}</b></td></tr></tbody></table></div>
+    <div class="scroll"><table><thead><tr><th>Line</th><th class="r">Qty</th><th class="r">Unit</th><th class="r">Amount</th></tr></thead><tbody>
+      ${q.lines.map(l => `<tr><td>${l.label} <span class="small muted">(${l.note})</span></td><td class="r num">${l.qty}</td><td class="r num">${money(l.unit)}</td><td class="r num">${money(l.qty * l.unit)}</td></tr>`).join("")}
+      <tr><td colspan="3">Subtotal</td><td class="r num">${money(q.sub)}</td></tr>
+      <tr><td colspan="3">${T().tax}</td><td class="r num">${money(q.tax)}</td></tr>
+      <tr><td colspan="3"><b>Total</b></td><td class="r total">${money(q.total)}</td></tr></tbody></table></div>
+    <p class="small"><b>Dashboard:</b> ${d.plan.name} at ${money(d.plan.fee)} a month plus ${T().tax} (${d.plan.why}). ${d.map} Sustainability+ can be added for reporting and AIRS.</p>
+    ${d.budget ? `<p class="small"><b>Budget lock:</b> ${money(d.budget)}. ${d.left.length ? "Left out to fit: " + esc(d.left.join("; ")) + "." : "The order fits without changes."}</p>` : ""}
+    ${d.flags.length ? `<div class="item warn"><b>To confirm</b>${d.flags.map(f => `<span class="small">${esc(f)}</span>`).join("")}</div>` : ""}
+  </section>
+  <div class="two">
+    <section class="panel"><h3>Stock</h3>
+      ${d.stock.map(x => `<div class="item ${x.ok ? "good" : "crit"}"><div class="row"><b>${S.stock[x.k].name}</b><span class="grow"></span><span class="pill ${x.ok ? "good" : "crit"}">${x.ok ? "In stock" : "Short"}</span></div><span class="small muted">Need <span class="num">${x.need}</span>, available <span class="num">${x.a}</span>.${x.ok ? "" : " Next delivery lands " + fmtDate(x.eta) + "."}</span></div>`).join("") || `<p class="muted">No hardware on this order.</p>`}
+    </section>
+    <section class="panel"><h3>Decisions</h3>
+      <div class="item ${d.sanity.ok ? "good" : "warn"}"><div class="row"><span class="who jev">Jev</span><b>Order sanity check</b><span class="grow"></span><span class="pill ${d.sanity.ok ? "good" : "warn"}">${d.sanity.label}</span></div>
+        <div class="row"><div class="meter ${d.sanity.ok ? "" : "low"}"><i style="width:${pct(d.sanity.p)}"></i></div><span class="small num">${pct(d.sanity.p)} against a ${pct(JEV[2].th)} threshold</span></div></div>
+      <div class="item ${d.gate.act ? "good" : "acc"}"><div class="row"><span class="who jev">Jev</span><b>Autonomy gate</b><span class="grow"></span><span class="pill ${d.gate.act ? "good" : "acc"}">${d.gate.act ? "Agent may act" : "Ask the reseller"}</span></div>
+        ${d.gate.why.map(w => `<span class="small">${esc(w)}.</span>`).join("") || `<span class="small">Existing client, under the ${r.capOrder}-device cap, check passed, stock available.</span>`}</div>
+    </section>
+  </div>
+  <section class="panel">
+    <div class="row">
+      ${d.gate.act ? `<button class="btn" data-act="auto">Let the agent place it</button><span class="small muted">At level ${r.level} this would run without you. You can undo it from Orders.</span>`
+                   : `<button class="btn" data-act="approve" ${r.paused ? "disabled" : ""}>Approve and place order</button>`}
+      <button class="btn ghost" data-act="discard">Discard draft</button>
+      <span class="grow"></span><a href="#controls" class="small">Talk to a person at Matter: support is on every order</a>
+    </div>
+  </section>`;
+}
+function vOrders(){
+  const os = mine(S.orders);
+  return `<section class="panel"><div class="head"><h2>Orders</h2><span class="small muted">Use Next step to walk an order through follow-through</span></div>
+  ${os.map(o => `<div class="item ${o.status < 0 ? "" : o.status === 5 ? "good" : "acc"}">
+    <div class="row"><b class="num">${o.id}</b><span>${esc(o.client)}</span><span class="grow"></span><span class="num">${money(o.total)}</span></div>
+    <span class="small muted">${o.locks} locks, ${o.sensors} sensors. Placed ${fmtDate(o.t)} by ${esc(o.by)}.</span>
+    ${o.status < 0 ? `<span class="pill">Cancelled</span>` : `<div class="steps">${STATUS.map((s, i) => `<span class="${i < o.status ? "done" : i === o.status ? "now" : ""}">${s}</span>`).join("")}</div>`}
+    <div class="row">${o.status >= 0 && o.status < 5 ? `<button class="btn ghost" data-act="next" data-id="${o.id}">Next step: ${STATUS[o.status + 1]}</button>` : ""}
+      ${o.undo && o.status === 1 ? `<button class="btn danger" data-act="undo" data-id="${o.id}">Undo agent order</button>` : ""}</div></div>`).join("") || `<p class="muted">No orders yet.</p>`}
+  </section>`;
+}
+function vStock(){
+  return `<section class="panel"><div class="head"><h2>Inventory</h2><span class="small muted">Perth warehouse. A US location is planned for mid 2027.</span></div>
+  <div class="scroll"><table><thead><tr><th>Product</th><th class="r">On hand</th><th class="r">Reserved</th><th class="r">Available</th><th class="r">Incoming</th><th>Lands</th><th class="r">Weeks of cover</th><th></th></tr></thead><tbody>
+  ${Object.keys(S.stock).map(k => { const s = S.stock[k], a = avail(k), wk = a / s.weekly; return `<tr><td><b>${s.name}</b></td><td class="r num">${s.onHand}</td><td class="r num">${s.reserved}</td><td class="r num">${a}</td><td class="r num">${s.incoming}</td><td>${fmtDate(s.eta)}</td><td class="r num">${wk.toFixed(1)}</td><td><span class="pill ${wk < 4 ? "crit" : wk < 6 ? "warn" : "good"}">${wk < 4 ? "Reorder now" : wk < 6 ? "Watch" : "Healthy"}</span></td></tr>`; }).join("")}
+  </tbody></table></div>
+  <p class="small muted">Weeks of cover is available stock divided by forecast weekly demand across all resellers.</p></section>
+  <section class="panel"><h3>Stock movements</h3>
+  <div class="scroll"><table><thead><tr><th>When</th><th>Product</th><th class="r">Qty</th><th>Reason</th><th>By</th></tr></thead><tbody>
+  ${S.moves.map(m => `<tr><td>${fmtDate(m.t)}</td><td>${S.stock[m.item].name}</td><td class="r num">${m.res ? (m.qty > 0 ? "hold " + m.qty : "release " + (-m.qty)) : (m.qty > 0 ? "+" + m.qty : m.qty)}</td><td>${esc(m.why)}</td><td>${esc(m.who)}</td></tr>`).join("")}
+  </tbody></table></div></section>`;
+}
+function vBookings(){
+  const bs = mine(S.bookings).slice().sort((a, b) => a.when - b.when);
+  return `<section class="panel"><div class="head"><h2>Bookings</h2><span class="small muted">Installs are a flat $45 per bin, with lock, sensor and ThinkLid fitted in one visit. A later visit is another $45. Onboarding is booked for when devices go live.</span></div>
+  ${bs.map(b => `<div class="item ${b.status === "Confirmed" ? "good" : "acc"}"><div class="row"><span class="pill ${b.type === "Install" ? "acc" : ""}">${b.type}</span><b>${esc(b.client)}</b><span class="grow"></span><span class="pill ${b.status === "Confirmed" ? "good" : "warn"}">${b.status}</span></div>
+    <span class="small muted">${fmtDate(b.when)} with ${esc(b.crew)}${b.devices ? ", " + b.devices + " devices" : ""}. Order ${b.order}.${b.moved ? " Moved by the agent: " + esc(b.moved) + "." : ""}</span>
+    <div class="row">${b.status === "Proposed" ? `<button class="btn" data-act="confirm" data-id="${b.id}">Confirm</button>` : ""}<button class="btn ghost" data-act="rebook" data-id="${b.id}">Site closed that day: rebook</button></div></div>`).join("") || `<p class="muted">No bookings.</p>`}
+  </section>`;
+}
+function vPredict(){
+  return `<section class="panel"><div class="head"><h2>Predictions</h2><span class="small muted">Each one comes with a prepared next step. Nothing is sent to a client without your approval.</span></div>${mine(S.predict).map(cardPredict).join("")}</section>`;
+}
+function vLoyalty(){
+  const r = R(), ti = tierOf(r.active), next = TIERS[ti + 1], base = TIERS[ti].from, span = next ? next.from - base : 1, done = next ? (r.active - base) / span : 1;
+  return `<section class="panel"><div class="head"><h2>${TIERS[ti].name} tier</h2><span class="pill warn">Placeholder thresholds</span></div>
+    <div class="row"><div class="meter"><i style="width:${pct(clamp(done, 0, 1))}"></i></div><span class="num small">${r.active.toLocaleString()} active devices</span></div>
+    <p>${next ? `<b class="num">${next.from - r.active}</b> more active devices reach ${next.name}.` : "You hold the top tier."} Status is earned on devices kept live, not only on units sold.</p>
+    <div class="item acc"><b>Suggested for you</b><span class="small">${r.active < 500 ? "Priority stock and routed leads suit a growing fleet. Your open quotes would move you most of the way to the next tier." : "A volume rebate suits a fleet of this size. Moving two clients to Sustainability+ also counts towards status."}</span><span class="small muted">Offer chosen by the loyalty decision (simulated).</span></div>
+  </section>
+  <section class="panel"><h3>Tiers</h3><div class="scroll"><table><thead><tr><th>Tier</th><th class="r">Active devices</th><th>Headline reward</th></tr></thead><tbody>
+    ${TIERS.map((t, i) => `<tr><td><b>${t.name}</b> ${i === ti ? `<span class="pill acc">You</span>` : ""}</td><td class="r num">${t.from.toLocaleString()}${TIERS[i + 1] ? " to " + (TIERS[i + 1].from - 1).toLocaleString() : " and above"}</td><td>${t.reward}</td></tr>`).join("")}
+  </tbody></table></div><p class="small muted">Rebate percentages and the annual reward budget are not set yet.</p></section>`;
+}
+function vControls(){
+  const r = R();
+  return `<div class="two">
+  <section class="panel"><div class="head"><h2>Agent limits</h2><span class="pill ${r.paused ? "crit" : "good"}">${r.paused ? "Paused" : "Running"}</span></div>
+    <div class="field"><label for="level">Autonomy level</label><select id="level">${[1,2,3,4].map(n => `<option value="${n}" ${n === r.level ? "selected" : ""}>Level ${n}: ${LEVELS[n]}</option>`).join("")}</select></div>
+    <div class="row">
+      <div class="field"><label for="capOrder">Devices per order</label><input type="number" id="capOrder" min="0" value="${r.capOrder}"></div>
+      <div class="field"><label for="capClient">Devices per client per month</label><input type="number" id="capClient" min="0" value="${r.capClient}"></div>
+    </div>
+    <p class="small muted">${T().name} starts at level ${T().level}. Level 3 is offered after ${T().unlock} clean orders; ${esc(r.name)} has ${r.clean}. A new client's first order always needs a person.</p>
+    <div class="row"><button class="btn ${r.paused ? "" : "danger"}" data-act="pause">${r.paused ? "Resume agent actions" : "Pause all agent actions"}</button></div>
+    <div class="item"><b>Talk to a person</b><span class="small">Matter support can take over any order mid-flow. In this prototype the hand-off is recorded in the log only.</span><div class="row"><button class="btn ghost" data-act="human">Hand the current draft to Matter support</button></div></div>
+  </section>
+  <section class="panel"><h3>Jev decision thresholds</h3>
+    <div class="scroll"><table><thead><tr><th>Decision</th><th>Go-live</th><th class="r">Threshold</th></tr></thead><tbody>${JEV.map(j => `<tr><td>${j.name}</td><td>${j.phase}</td><td class="r num">${j.th.toFixed(2)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="small muted">Placeholders, to be calibrated in shadow mode against staff decisions.</p>
+  </section></div>
+  <section class="panel"><h3>Territory settings</h3>
+    <div class="scroll"><table><thead><tr><th>Territory</th><th>Currency</th><th>Tax label</th><th>Default autonomy</th><th>Level 3 after</th><th>Launch</th></tr></thead><tbody>
+    ${Object.values(TERR).map(t => `<tr><td>${t.name}</td><td class="num">${t.cur}</td><td>${t.tax}</td><td>Level ${t.level}</td><td>${t.unlock} clean orders</td><td>${t.live}</td></tr>`).join("")}</tbody></table></div>
+  </section>
+  <section class="panel"><h3>Action and decision log</h3>
+    <div class="log">${S.log.map(l => `<div><time>${fmtDate(l.t)}</time><span class="who ${l.who.toLowerCase()}">${l.who}</span><span>${esc(l.text)}${l.p != null ? ` <span class="num muted">(${pct(l.p)})</span>` : ""}</span></div>`).join("")}</div>
+  </section>`;
+}
+function refCalc(){
+  const rf = S.refer[S.rid]; let used = 0;
+  const rows = rf.list.map(x => {
+    const counted = x.stage === "lapsed" || x.stage === "signed" ? 0 : Math.max(0, Math.min(x.devices, REF.perCustomer, REF.perYear - used));
+    used += counted;
+    return Object.assign({}, x, {counted, reward: counted * REF.rates[x.plan], src:x});
+  });
+  return {rf, rows, used, earned: rows.filter(r => r.stage === "paid").reduce((a, r) => a + r.reward, 0), pending: rows.filter(r => r.stage === "potential").reduce((a, r) => a + r.reward, 0)};
+}
+function vRefer(){
+  const r = R(), c = refCalc(), n = k => c.rows.filter(x => x.stage === k).length;
+  return `<section class="panel"><div class="head"><h2>Referral program</h2><span class="pill warn">Placeholder reward amounts</span></div>
+    <p>Refer a business that is new to ThinkOS. When it has been a paying customer for ${REF.payAfter} days, you earn a one-time reward for each of its active devices.</p>
+    <div class="grid">
+      <div class="tile"><span class="muted small">Signed up</span><b>${n("signed")}</b></div>
+      <div class="tile"><span class="muted small">Potential paid</span><b>${n("potential")}</b><span class="small muted">${money(c.pending)} if they reach ${REF.payAfter} days</span></div>
+      <div class="tile"><span class="muted small">Paid referrals</span><b>${n("paid")}</b></div>
+      <div class="tile"><span class="muted small">Earned</span><b>${money(c.earned)}</b><span class="small muted">${c.rf.bank ? "Paid monthly to your bank account" : "Add bank details to be paid"}</span></div>
+    </div>
+    <div class="row"><span class="small">Devices counted this year</span><div class="meter"><i style="width:${pct(clamp(c.used / REF.perYear, 0, 1))}"></i></div><span class="num small">${c.used} of ${REF.perYear}</span></div>
+    ${c.used >= REF.perYear ? `<div class="item warn"><span class="small">You have reached this year's limit. Referrers above ${REF.perYear} devices a year can apply to the Reseller Program.</span></div>` : ""}
+  </section>
+  <div class="two">
+  <section class="panel"><h3>Your referral code and promotion codes</h3>
+    <div class="item acc"><div class="row"><b class="num">${c.rf.code}</b><span class="grow"></span><button class="btn ghost" data-act="copy" data-v="${c.rf.code}">Copy code</button></div><span class="small muted">The referred business must sign up with this code. A referral cannot be traced back to you afterwards. The sign-up link is issued at launch.</span></div>
+    <span class="small">Promotion codes give the referred business ${REF.promo}% off its dashboard subscription for the first year. Each code works for one customer.</span>
+    <div class="row">${c.rf.promos.map(x => `<span class="pill num">${x}</span>`).join("")}</div>
+    ${c.rf.bank ? "" : `<div class="item warn"><b>Bank details needed</b><span class="small">Add them now so a reward can be paid as soon as a referral qualifies.</span><div class="row"><button class="btn" data-act="bank">Mark bank details as added</button></div></div>`}
+  </section>
+  <section class="panel"><h3>Reward for each active device</h3>
+    <div class="scroll"><table><thead><tr><th>Customer's plan</th><th class="r">Per device</th><th class="r">Most each</th></tr></thead><tbody>
+    ${Object.keys(REF.rates).map(k => `<tr><td>${k}</td><td class="r num">${money(REF.rates[k])}</td><td class="r num">${money(REF.rates[k] * REF.perCustomer)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="small muted">Rewards cover a referred customer's first ${REF.perCustomer} devices, and up to ${REF.perYear} devices a calendar year. To count, the customer must sign up with your code, buy at least the five-lock starter pack within ${REF.buyWithin} days, and pay in full for ${REF.payAfter} days.</p>
+  </section></div>
+  <section class="panel"><div class="head"><h3>Your referrals</h3><button class="btn ghost" data-act="refadd">Add a sample referral</button></div>
+    ${c.rows.map((x, i) => `<div class="item ${RSTAGE[x.stage][1]}"><div class="row"><b>${esc(x.name)}</b><span class="grow"></span><span class="pill ${RSTAGE[x.stage][1]}">${RSTAGE[x.stage][0]}</span></div>
+      <span class="small muted">${x.stage === "signed" ? `Signed up ${x.days} days ago. No purchase yet; the starter pack must be bought by day ${REF.buyWithin}.` : x.stage === "lapsed" ? `No purchase within ${REF.buyWithin} days, so this referral does not count.` : `${x.plan}, ${x.devices} active devices, paying for ${x.days} days. ${x.counted} devices count: ${money(x.reward)}${x.stage === "paid" ? " earned" : " at day " + REF.payAfter}.`}</span>
+      ${x.stage === "paid" || x.stage === "lapsed" ? "" : `<div class="row"><button class="btn ghost" data-act="refnext" data-i="${i}">Move forward 30 days</button></div>`}</div>`).join("")}
+    <p class="small muted">Status emails will show the same three counts: signed up, potential paid and paid.</p>
+  </section>`;
+}
+const RENDER = {refer:vRefer, brief:vBrief, order:vOrder, orders:vOrders, stock:vStock, bookings:vBookings, predict:vPredict, loyalty:vLoyalty, controls:vControls};
+
+function render(){
+  $("#tabs").innerHTML = VIEWS.map(([k, n]) => `<a href="#${k}" ${k === S.view ? 'aria-current="page"' : ""}>${n}</a>`).join("");
+  const sel = $("#reseller");
+  sel.innerHTML = Object.values(S.resellers).map(r => `<option value="${r.id}" ${r.id === S.rid ? "selected" : ""}>${esc(r.name)} (${TERR[r.terr].name})</option>`).join("");
+  $("#app").innerHTML = RENDER[S.view]();
+}
+function route(){ const h = location.hash.replace("#", ""); S.view = RENDER[h] ? h : "brief"; render(); }
+function keepForm(){
+  const l = $("#list"); if (!l) return;
+  S.listText = l.value; S.clientText = $("#client").value; S.budgetText = $("#budget").value; S.installOff = $("#install").value === "0";
+}
+
+/* ---------- actions ---------- */
+async function build(){
+  keepForm();
+  const text = (S.listText == null ? SAMPLE_LIST : S.listText).trim();
+  if (!text) { toast("Paste a site list first."); return; }
+  S.busy = true; S.draft = null; S.step = 0; render();
+  let read;
+  try { read = await readList(text); } catch (e) { read = Object.assign({by:"Built-in reader"}, parseLocal(text)); }
+  if (!read.sites.length) { S.busy = false; render(); toast("No sites with bin or device counts were found in that list."); return; }
+  for (let i = 1; i <= 6; i++) { S.step = i; render(); await new Promise(r => setTimeout(r, 260)); }
+  S.draft = buildDraft(read, {client:S.clientText, budget:parseFloat(S.budgetText) || 0, install:!S.installOff});
+  S.busy = false; render();
+}
+async function ask(text){
+  S.chat.push({me:true, text}); S.chatBusy = true; render();
+  const rid = S.rid, r = R();
+  const tools = [
+    {name:"list_orders", description:"List this reseller's orders with status, quantities and totals", execute:() => mine(S.orders).map(o => ({id:o.id, client:o.client, locks:o.locks, sensors:o.sensors, total:o.total, status:o.status < 0 ? "Cancelled" : STATUS[o.status], placedBy:o.by}))},
+    {name:"get_stock", description:"Get warehouse stock for locks and sensors: on hand, reserved, available, incoming and arrival date", execute:() => Object.keys(S.stock).map(k => ({product:S.stock[k].name, onHand:S.stock[k].onHand, reserved:S.stock[k].reserved, available:avail(k), incoming:S.stock[k].incoming, lands:fmtDate(S.stock[k].eta)}))},
+    {name:"list_bookings", description:"List this reseller's install and onboarding bookings", execute:() => mine(S.bookings).map(b => ({client:b.client, type:b.type, when:fmtDate(b.when), crew:b.crew, devices:b.devices, status:b.status, order:b.order}))},
+    {name:"list_clients", description:"List this reseller's clients with bins, devices and dashboard plan", execute:() => mine(S.clients).map(c => ({name:c.name, bins:c.bins, locks:c.locks, sensors:c.sensors, plan:c.plan}))}
+  ];
+  try {
+    const res = await sample(`You are the ThinkOS reseller agent for ${r.name}, a reseller of GravityLock bin locks and fill sensors. Answer the reseller's question in at most four short sentences, using the tools for facts. This is sample data in a prototype. You cannot change anything from this chat; if asked to, say the change must be made on the New order or Orders tab. Question: ${text}`, {tools, cache:false, modelTier:"quick"});
+    if (rid === S.rid) S.chat.push({text:res.text || "No answer came back."});
+  } catch (e) {
+    S.chat.push({text: e && e.code === "rate_limited" ? "Claude is busy. Try again in a minute." : "The agent could not answer just now."});
+  }
+  S.chatBusy = false; render();
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act, r = R();
+  if (act === "build") return void build();
+  if (act === "discard") { S.draft = null; render(); return; }
+  if (act === "approve" || act === "auto") {
+    const id = placeOrder(S.draft, act === "auto" ? "Agent, within limits" : "Reseller"); S.draft = null; if (act === "approve") r.clean++;
+    location.hash = "orders"; toast(`Order ${id} placed. Stock is reserved and bookings are proposed.`); return;
+  }
+  if (act === "next") {
+    const o = S.orders.find(x => x.id === b.dataset.id); o.status++; o.undo = false;
+    if (o.status === 3) [["lock", o.locks],["sensor", o.sensors]].forEach(([k, n]) => { if (n) { S.stock[k].onHand -= n; S.stock[k].reserved = Math.max(0, S.stock[k].reserved - n); S.moves.unshift({t:new Date(), item:k, qty:-n, why:"Shipped, order " + o.id, who:"Agent"}); } });
+    if (o.status === 5) { r.active += o.locks + o.sensors; const c = S.clients.find(c => c.rid === o.rid && c.name === o.client); if (c) { c.locks += o.locks; c.sensors += o.sensors; } }
+    log("Claude", `Order ${o.id} moved to ${STATUS[o.status]}`); render(); return;
+  }
+  if (act === "undo") {
+    const o = S.orders.find(x => x.id === b.dataset.id); o.status = -1;
+    [["lock", o.locks],["sensor", o.sensors]].forEach(([k, n]) => { if (n) { S.stock[k].reserved = Math.max(0, S.stock[k].reserved - n); S.moves.unshift({t:new Date(), item:k, qty:-n, why:"Released, order " + o.id + " undone", who:r.name, res:true}); } });
+    S.bookings = S.bookings.filter(x => x.order !== o.id);
+    log("Person", `${r.name} undid agent order ${o.id}; stock released and bookings removed`); render(); toast("Order undone and stock released."); return;
+  }
+  if (act === "confirm") { const k = S.bookings.find(x => x.id === b.dataset.id); k.status = "Confirmed"; log("Person", `${r.name} confirmed ${k.type.toLowerCase()} ${k.id} for ${k.client}`); render(); return; }
+  if (act === "rebook") {
+    const k = S.bookings.find(x => x.id === b.dataset.id), old = fmtDate(k.when); k.when = new Date(k.when.getTime() + 2 * 864e5); if (k.when.getDay() === 0) k.when = new Date(k.when.getTime() + 864e5); if (k.when.getDay() === 6) k.when = new Date(k.when.getTime() + 2 * 864e5);
+    k.moved = "was " + old; log("Claude", `Moved ${k.type.toLowerCase()} ${k.id} for ${k.client} from ${old} to ${fmtDate(k.when)} and told the installer and client contact`); render(); toast("Booking moved to " + fmtDate(k.when) + "."); return;
+  }
+  if (act === "prep") { const p = S.predict[+b.dataset.i]; p.done = true; log("Claude", `Prepared: ${p.act.toLowerCase()} (${p.title})`, p.p); render(); return; }
+  if (act === "copy") { const v = b.dataset.v; try { navigator.clipboard.writeText(v).then(() => toast("Copied " + v), () => toast("Copy was blocked. The code is " + v)); } catch (e) { toast("Copy was blocked. The code is " + v); } return; }
+  if (act === "bank") { S.refer[S.rid].bank = true; log("Person", `${r.name} added bank details for referral rewards`); render(); return; }
+  if (act === "refadd") { const names = ["Fernhill Community Centre","Saltbush Brewery","Glenmore Sports Club","Riverbend Distribution"]; const L = S.refer[S.rid].list; L.push({name:names[L.length % names.length], plan:"Operations", devices:0, stage:"signed", days:0}); render(); return; }
+  if (act === "refnext") {
+    const x = S.refer[S.rid].list[+b.dataset.i]; x.days += 30;
+    if (x.stage === "signed") { x.stage = "potential"; x.devices = 25; x.days = 30; }
+    if (x.stage === "potential" && x.days >= REF.payAfter) { x.stage = "paid"; log("Rule", `Referral ${x.name} reached ${REF.payAfter} paid days; reward queued for the next monthly payment`); }
+    render(); return;
+  }
+  if (act === "pause") { r.paused = !r.paused; log("Person", `${r.name} ${r.paused ? "paused" : "resumed"} all agent actions`); render(); return; }
+  if (act === "human") { log("Person", `${r.name} asked Matter support to take over${S.draft ? " the draft for " + S.draft.client : ""}`); render(); toast("Recorded. In the live system this opens a support hand-off."); return; }
+});
+document.addEventListener("change", e => {
+  const id = e.target.id, r = R();
+  if (id === "reseller") { S.rid = e.target.value; S.draft = null; S.chat = []; render(); }
+  if (id === "level") { r.level = +e.target.value; log("Person", `${r.name} set autonomy to level ${r.level}`); render(); }
+  if (id === "capOrder") { r.capOrder = Math.max(0, +e.target.value || 0); log("Person", `${r.name} set the order cap to ${r.capOrder} devices`); }
+  if (id === "capClient") { r.capClient = Math.max(0, +e.target.value || 0); }
+});
+document.addEventListener("input", e => { if (["list","client","budget","install"].includes(e.target.id)) keepForm(); });
+document.addEventListener("submit", e => {
+  e.preventDefault();
+  if (e.target.id === "askForm" && sample && !S.chatBusy) { const v = $("#ask").value.trim(); if (v) ask(v); }
+});
+window.addEventListener("hashchange", () => { keepForm(); route(); });
+route();
+</script>
+</body>
+</html>

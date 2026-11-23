@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThinkOS FAQs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a reference page. Search and a section index up top, then one reading column of questions. */
+:root{
+  --bg:#F3F7F2; --surface:#ffffff; --sunk:#EEF6EB; --ink:#13241B; --muted:#55655B; --line:#D5E2D8;
+  --accent:#205C40; --accent-soft:#E3F1DF; --warn:#9a5b00; --warn-soft:#fbefd9;
+  --display:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif; --body:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ color-scheme:dark;
+    --bg:#0A1510; --surface:#0F1E17; --sunk:#13281E; --ink:#E6F1EA; --muted:#A3B5A9; --line:#21382C;
+    --accent:#5BCB3F; --accent-soft:#16301F; --warn:#e6ad4f; --warn-soft:#3a2d12; }
+}
+:root[data-theme="dark"]{ color-scheme:dark;
+  --bg:#0A1510; --surface:#0F1E17; --sunk:#13281E; --ink:#E6F1EA; --muted:#A3B5A9; --line:#21382C;
+  --accent:#5BCB3F; --accent-soft:#16301F; --warn:#e6ad4f; --warn-soft:#3a2d12; }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px 56px;display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:30px;line-height:1.15}
+h2{font-size:19px;padding-top:8px}
+p{margin:0}
+.lead{color:var(--muted);max-width:60ch}
+.note{background:var(--warn-soft);border-left:4px solid var(--warn);padding:10px 12px;border-radius:4px;font-size:14px}
+input{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;width:100%}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+nav{display:flex;flex-wrap:wrap;gap:8px}
+nav a{font-size:14px;text-decoration:none;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:999px}
+section{display:flex;flex-direction:column;gap:8px}
+details{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+summary{cursor:pointer;padding:12px 14px;font-weight:600;display:flex;gap:10px;align-items:baseline;justify-content:space-between;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary span::before{content:"+";display:inline-block;width:18px;color:var(--accent);font-weight:700}
+details[open] summary span::before{content:"\2212"}
+summary em{font-style:normal;font-size:12px;font-weight:600;color:var(--warn);background:var(--warn-soft);padding:2px 8px;border-radius:999px;white-space:nowrap}
+details p{padding:0 14px 14px 32px;max-width:65ch}
+.none{color:var(--muted)}
+footer{border-top:1px solid var(--line);padding-top:16px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1>ThinkOS frequently asked questions</h1>
+    <p class="lead">Plans and pricing, installation, the reseller agent, loyalty and the referral program for the 2027 version of ThinkOS.</p>
+  </header>
+  <p class="note">Draft for review. Answers marked "To confirm" contain reward amounts, limits or wording that are still placeholders.</p>
+  <div><label for="q">Search the questions</label><input id="q" type="search" placeholder="Try: install, referral, budget" autocomplete="off"></div>
+  <nav aria-label="Sections"><a href="#s1">About this version of ThinkOS</a><a href="#s2">Bin Map, plans and pricing</a><a href="#s3">Locks, sensors, installation and onboarding</a><a href="#s4">The reseller agent</a><a href="#s5">Stock, bookings and predictions</a><a href="#s6">Reseller loyalty</a><a href="#s7">Referral program: how it works</a><a href="#s8">Referral program: promotion codes and payment</a><a href="#s9">Regions and launch dates</a><a href="#s10">Data and control</a></nav>
+  <p class="none" id="none" hidden>No questions match that search.</p>
+<section id="s1"><h2>About this version of ThinkOS</h2>
+<details open><summary><span>What is ThinkOS?</span></summary><p>ThinkOS is the operating system for a new age of waste and sustainability management. It gives you Total Bin Fleet Asset Management: every bin on one map, with locks, fill sensors, service data and reporting layered on top.</p></details>
+<details><summary><span>What is new in this version?</span></summary><p>Three things. The Bin Map is free for customers with five or more GravityLocks. Operations and Live Operations are now a single Operations plan. Resellers get an AI agent that can turn a site list into an order, book installs and prepare reorders.</p></details>
+<details><summary><span>Who is it for?</span></summary><p>Councils, facility managers, waste operators and any business that manages a fleet of bins, plus the resellers who supply and support them.</p></details>
+</section>
+<section id="s2"><h2>Bin Map, plans and pricing</h2>
+<details open><summary><span>What does the Bin Map cost?</span></summary><p>Nothing, for as long as you are a customer with five or more purchased GravityLocks. It stays free.</p></details>
+<details><summary><span>Can I get the free Bin Map with sensors only?</span></summary><p>No. The free Bin Map is earned with GravityLocks. Trial locks do not count; the locks must be purchased.</p></details>
+<details><summary><span>Can I add bins that have no ThinkOS hardware?</span></summary><p>Yes. You can pin as many of your own bins as you like, with or without a lock or sensor.</p></details>
+<details><summary><span>What is the smallest purchase?</span></summary><p>A five-lock starter pack. It sits below the usual 25-lock customer minimum and is the entry purchase that earns the free Bin Map.</p></details>
+<details><summary><span>What does Operations cost?</span></summary><p>$99 a month for up to 250 bins and $190 a month above 250 bins, plus GST. These are Australian prices.</p></details>
+<details><summary><span>What is Sustainability+?</span></summary><p>The third plan. It adds monthly and quarterly sustainability reports and custom integrations. It is available to facility managers, and to all customers through the Reseller Program. Ask your reseller for pricing.</p></details>
+<details><summary><span>What is AIRS?</span></summary><p>The Automated Invoice Reconciliation System. It compares what your waste contractor invoiced with what your sensors measured and flags the differences. It is included in Sustainability+ for facility managers.</p></details>
+</section>
+<section id="s3"><h2>Locks, sensors, installation and onboarding</h2>
+<details open><summary><span>What does installation cost?</span></summary><p>$45 per bin. It is offered on every order, whatever the size.</p></details>
+<details><summary><span>If a bin gets a lock and a sensor, do I pay twice?</span></summary><p>No. A lock and a sensor fitted to the same bin in the same visit are one $45 installation.</p></details>
+<details><summary><span>What about ThinkLid?</span></summary><p>A ThinkLid fitted in the same visit adds no installation charge. If it is fitted on a later visit, that visit is $45.</p></details>
+<details><summary><span>Is there an onboarding fee?</span></summary><p>Reseller onboarding is $199 and is offered on orders of five sensors or more.</p></details>
+<details><summary><span>When are ThinkLid and ThinkCam available?</span></summary><p>Both are shown as options from mid 2027.</p></details>
+<details><summary><span>What are the AR/AI reporting glasses?</span></summary><p>A hands-free way for rangers and installers to report on bins in the field. They are due for release in May 2027.</p></details>
+</section>
+<section id="s4"><h2>The reseller agent</h2>
+<details open><summary><span>What does the reseller agent do?</span></summary><p>You give it a client's site list in any layout. It counts the devices, checks pack rules and live stock, prices the order, picks the dashboard plan and shows you a draft. After approval it reserves stock and proposes install and onboarding bookings.</p></details>
+<details><summary><span>Will it place orders without asking me?</span></summary><p>Only if you let it. Every reseller starts at level 2, where the agent prepares everything and you approve before anything is placed or paid for.</p></details>
+<details><summary><span>What are the autonomy levels?</span></summary><p>Level 1, Advise: the agent recommends and drafts. Level 2, Prepare: it builds the order and you approve with one tap. Level 3, Act within limits: it places orders inside caps you set and tells you. Level 4, Act and report: it runs the routine and reports exceptions.</p></details>
+<details><summary><span>What limits apply at level 3?</span><em>To confirm</em></summary><p>A cap on devices per order and per client per month, and a monthly ceiling for your account. Anything above a cap comes back to you for approval. A new client's first order always needs a person.</p></details>
+<details><summary><span>Can I undo something the agent did?</span></summary><p>Yes. An order the agent placed can be undone for a set period, which releases the stock and removes the bookings. You can also pause all agent actions at any time.</p></details>
+<details><summary><span>Can I talk to a person instead?</span></summary><p>Always. Every order carries a hand-off to Matter IO support, who can take it over mid-flow. You can also plan a deployment by hand and use the agent only to check it.</p></details>
+<details><summary><span>Will the agent contact my clients?</span></summary><p>Not without your approval. Permission to send messages is separate from permission to place orders.</p></details>
+<details><summary><span>Can I set a client budget?</span></summary><p>Yes. Enter the budget and the agent builds the best order inside it and shows what it left out.</p></details>
+<details><summary><span>What powers the agent?</span><em>To confirm</em></summary><p>The agent is powered by Claude, which reads site lists and invoices, plans the steps and writes quotes and proposals. Routine decisions, such as whether an order looks normal, are scored by a separate decision model that reports its confidence. A low score always sends the decision to a person.</p></details>
+<details><summary><span>Can my own systems place orders?</span></summary><p>That is planned. ThinkOS ordering will be available to a reseller's own software or AI assistant, under the same limits.</p></details>
+</section>
+<section id="s5"><h2>Stock, bookings and predictions</h2>
+<details open><summary><span>Are quotes based on real stock?</span></summary><p>Yes. Quotes draw on live stock, lead times and the current price list. If stock is short, the draft shows when the next delivery lands.</p></details>
+<details><summary><span>How are installs booked?</span></summary><p>The agent matches installer availability, site access hours and stock arrival, and groups nearby installs into one run. If a site is closed or a shipment slips, it moves the booking and tells everyone involved.</p></details>
+<details><summary><span>Is there off-peak install pricing?</span></summary><p>No. Installation is a flat $45 per bin.</p></details>
+<details><summary><span>What does ThinkOS predict?</span></summary><p>Bins about to overflow, devices nearing the end of battery life, clients growing towards the next plan, clients at risk of leaving, contamination hot spots and invoices likely to be overcharged. Each prediction arrives with a prepared next step for you to approve.</p></details>
+</section>
+<section id="s6"><h2>Reseller loyalty</h2>
+<details open><summary><span>How does reseller loyalty work?</span></summary><p>Resellers earn status on devices they keep active, not only on units sold. Order volume, plan upgrades and client retention also count.</p></details>
+<details><summary><span>What are the tiers?</span><em>To confirm</em></summary><p>Member, Silver from 100 active devices, Gold from 500 and Platinum from 1,500. Rewards range from waived onboarding fees and priority support to rebates, priority stock, routed leads and early access to new hardware.</p></details>
+<details><summary><span>Are rewards the same for everyone?</span></summary><p>No. The offer is matched to each reseller: a growing reseller is more likely to be offered stock priority and leads, an established one a rebate.</p></details>
+</section>
+<section id="s7"><h2>Referral program: how it works</h2>
+<details open><summary><span>How does the referral program work?</span></summary><p>You share your referral code or link with a business that is new to ThinkOS. When that business has been a paying ThinkOS customer for at least 90 days, the referral is reviewed and you earn a reward. Add your payment details early so you can be paid as soon as a referral qualifies.</p></details>
+<details><summary><span>Who can I refer?</span></summary><p>Any business that has not bought or trialled ThinkOS before and is not already a customer of a ThinkOS reseller.</p></details>
+<details><summary><span>What makes a referral count?</span><em>To confirm</em></summary><p>The business must sign up with your referral code or link, buy at least the five-lock starter pack within 15 days, and pay in full for at least 90 days. All of this must happen on the same account while your referral membership is active.</p></details>
+<details><summary><span>How much can I earn?</span><em>To confirm</em></summary><p>A one-time reward for each active device on the referred account, set by the plan the customer is on: $4 per device on Bin Map, $8 on Operations and $12 on Sustainability+. Rewards vary by country.</p></details>
+<details><summary><span>Is there a limit?</span><em>To confirm</em></summary><p>Rewards cover the first 100 devices of each referred customer, and up to 200 devices in a calendar year. If you expect to refer more than that, apply to the Reseller Program instead.</p></details>
+<details><summary><span>Where is my referral code?</span></summary><p>In your welcome email, which arrives within 24 hours of joining, and on the Referrals tab of your dashboard. Each sharing channel has its own link so we can see which works best. All of them are valid and tied to your account.</p></details>
+<details><summary><span>How do I track my referrals?</span></summary><p>On the Referrals tab, and in a regular status email. Both show three counts: signed up, potential paid (purchased, but not yet at 90 days) and paid.</p></details>
+<details><summary><span>My referral forgot to use my code. Can it be added later?</span></summary><p>No. A referral cannot be traced back to you if your code or link was not used at sign-up.</p></details>
+<details><summary><span>Can I be paid for customers I introduced before I joined?</span></summary><p>No. The program only counts new customers who sign up after you join.</p></details>
+</section>
+<section id="s8"><h2>Referral program: promotion codes and payment</h2>
+<details open><summary><span>What does the business I refer get?</span><em>To confirm</em></summary><p>A promotion code for 10% off its dashboard subscription for the first year. Each code works for one customer account.</p></details>
+<details><summary><span>When am I paid?</span></summary><p>After the referred customer has been an active paying customer for more than 90 days. Rewards are paid monthly to your bank account. A month with no newly qualified referrals has no payment.</p></details>
+<details><summary><span>Which currency am I paid in?</span></summary><p>The currency of the country you joined in. Your bank account must be in that country. Bank fees and currency conversion are set by your bank.</p></details>
+<details><summary><span>Which countries is the program in?</span><em>To confirm</em></summary><p>Australia first, from February 2027, then New Zealand, Singapore and Malaysia. The United States and Canada follow in May or June 2027.</p></details>
+</section>
+<section id="s9"><h2>Regions and launch dates</h2>
+<details open><summary><span>Where is this version of ThinkOS available?</span></summary><p>It launches in Australia in February 2027. It is designed for Australia, New Zealand, Singapore and Malaysia, with the United States and Canada to follow in May or June 2027.</p></details>
+<details><summary><span>Are prices and tax handled per country?</span></summary><p>Yes. Each territory has its own currency, tax label and price list. The prices on this page are Australian and exclude GST.</p></details>
+</section>
+<section id="s10"><h2>Data and control</h2>
+<details open><summary><span>Who can see my client data?</span></summary><p>A reseller sees only its own clients. One reseller's client data is never used to serve another.</p></details>
+<details><summary><span>Is there a record of what the agent does?</span></summary><p>Yes. Every action and decision is logged with what was done, why, on whose authority and, for scored decisions, the confidence.</p></details>
+</section>
+  <footer><p><strong>Didn't find your answer?</strong> Contact your ThinkOS reseller or Matter IO support.</p></footer>
+</div>
+<script>
+const q = document.getElementById("q"), all = [...document.querySelectorAll("details")], was = new Map(all.map(d => [d, d.open]));
+q.addEventListener("input", () => {
+  const t = q.value.trim().toLowerCase(); let hits = 0;
+  all.forEach(d => { const m = !t || d.textContent.toLowerCase().includes(t); d.hidden = !m; d.open = t ? m : was.get(d); if (m) hits++; });
+  document.querySelectorAll("section").forEach(s => s.hidden = !s.querySelector("details:not([hidden])"));
+  document.getElementById("none").hidden = hits > 0;
+});
+</script>
+</body>
+</html>

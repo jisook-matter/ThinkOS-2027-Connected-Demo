@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThinkOS 2027 Connected Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one shell with a tab rail. Overview and Field view are native reading columns;
+   the three apps open full-height beneath the rail so the whole system sits in one place. */
+:root{
+  --bg:#F3F7F2; --surface:#ffffff; --sunk:#EEF6EB; --ink:#13241B; --muted:#55655B; --line:#D5E2D8;
+  --accent:#205C40; --accent-ink:#ffffff; --accent-soft:#E3F1DF;
+  --good:#1d7a46; --warn:#9a5b00; --crit:#b3261e; --warn-soft:#fbefd9; --crit-soft:#fbe6e4; --good-soft:#e1f3e7;
+  --wl:block; --wd:none; --lime:#43B02A;
+  --hud:#8dffa8; --hud-dim:rgba(141,255,168,.55); --hud-bg:rgba(5,22,11,.74);
+  --display:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ color-scheme:dark; --wl:none; --wd:block;
+    --bg:#0A1510; --surface:#0F1E17; --sunk:#13281E; --ink:#E6F1EA; --muted:#A3B5A9; --line:#21382C;
+    --accent:#5BCB3F; --accent-ink:#0A1510; --accent-soft:#16301F;
+    --good:#5fcf8d; --warn:#e6ad4f; --crit:#f08a80; --warn-soft:#3a2d12; --crit-soft:#3d1c19; --good-soft:#14301f; }
+}
+:root[data-theme="dark"]{ color-scheme:dark; --wl:none; --wd:block;
+  --bg:#0A1510; --surface:#0F1E17; --sunk:#13281E; --ink:#E6F1EA; --muted:#A3B5A9; --line:#21382C;
+  --accent:#5BCB3F; --accent-ink:#0A1510; --accent-soft:#16301F;
+  --good:#5fcf8d; --warn:#e6ad4f; --crit:#f08a80; --warn-soft:#3a2d12; --crit-soft:#3d1c19; --good-soft:#14301f; }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;display:flex;flex-direction:column}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:30px;line-height:1.12} h2{font-size:20px} h3{font-size:15px}
+p{margin:0} a{color:var(--accent)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .small{font-size:13px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{background:var(--surface);border-bottom:1px solid var(--line);flex:none}
+.bar{max-width:1040px;margin:0 auto;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px}
+.wm{height:22px;width:auto;display:var(--wl)} .wm.wd{display:var(--wd)}
+.reg{font-size:11px;font-weight:600;margin-left:-5px;align-self:flex-start;color:var(--accent)}
+.prod{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.foot{max-width:1040px;margin:0 auto;padding:8px 16px 28px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.foot .wm{height:16px}
+.mark{width:22px;height:22px;border-radius:5px;background:var(--accent);display:inline-block;position:relative}
+.mark::after{content:"";position:absolute;left:5px;right:5px;top:6px;height:3px;background:var(--accent-ink);box-shadow:0 5px 0 var(--accent-ink)}
+nav{background:var(--surface);border-bottom:1px solid var(--line);flex:none}
+.tabs{max-width:1040px;margin:0 auto;padding:0 8px;display:flex;gap:2px;overflow-x:auto}
+.tabs a{padding:11px 10px;text-decoration:none;color:var(--muted);white-space:nowrap;border-bottom:3px solid transparent;font-weight:500}
+.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+#view{flex:1;min-height:0;overflow:auto}
+.col{max-width:1040px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+.appwrap{height:100%;display:flex;flex-direction:column}
+.appbar{flex:none;padding:6px 16px;font-size:13px;color:var(--muted);background:var(--sunk);display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between}
+iframe{flex:1;width:100%;border:0;min-height:0;background:var(--bg)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel > .head{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+/* ThinkLid product page */
+.tl-hero{background:#205C40;color:#fff;border-radius:10px;padding:22px 18px 18px;display:grid;gap:14px;grid-template-columns:minmax(0,1fr);overflow:hidden;position:relative}
+.tl-hero h1{font-size:40px;line-height:1.02;color:#fff} .tl-hero h1 i{font-style:normal;color:#43B02A}
+.tl-hero p{margin:0;max-width:46ch;color:#DDEBDD;font-size:16px}
+.tl-hero .pill{background:rgba(255,255,255,.14);color:#fff}
+.tl-stage{position:relative;aspect-ratio:1100/834;max-width:560px;width:100%;justify-self:center}
+.tl-stage .lid{width:100%;height:100%;object-fit:contain;display:block;animation:tlFloat 7s ease-in-out infinite;filter:drop-shadow(0 26px 22px rgba(0,0,0,.35))}
+.tl-stage .lens{position:absolute;left:2%;bottom:0;width:27%;aspect-ratio:1;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.tl-stage .ring{position:absolute;left:49.5%;top:36.5%;width:9%;aspect-ratio:1;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%);animation:tlPing 2.6s ease-out infinite;pointer-events:none}
+.tl-sw{display:flex;gap:8px;flex-wrap:wrap}
+.tl-sw button{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 10px;min-height:44px;border-radius:999px;border:1px solid rgba(255,255,255,.35);color:#fff;font-weight:600;font-size:14px}
+.tl-sw button i{width:18px;height:18px;border-radius:50%;border:2px solid #fff;flex:none}
+.tl-sw button[aria-pressed="true"]{background:#fff;color:#13241B} .tl-sw button[aria-pressed="true"] i{border-color:#13241B}
+.tl-sw button:focus-visible,.tl-col:focus-visible{outline:2px solid #43B02A;outline-offset:2px}
+.tl-stage .lid{transition:opacity .25s} .tl-stage .lid.sw{opacity:0}
+.tl-stage.plain .ring,.tl-stage.plain .lens{display:none}
+.tl-col img{aspect-ratio:1;object-fit:contain}
+.tl-cols{display:grid;gap:10px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.tl-col{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:3px;background:var(--sunk);transition:border-color .25s,transform .25s;min-width:0}
+.tl-col img{width:100%;height:auto;display:block;margin-bottom:4px;transition:transform .4s}
+.tl-col:hover img,.tl-col.on img{transform:translateY(-4px) rotate(-2deg)} .tl-col.on{border-color:var(--accent);border-width:2px;padding:9px}
+@media(max-width:520px){.tl-cols{gap:6px}.tl-col{padding:8px}.tl-col.on{padding:7px}.tl-col .muted{display:none}}
+.tl-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tl-stats div{background:rgba(255,255,255,.1);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.tl-stats b{font-family:var(--mono);font-size:22px;color:#fff} .tl-stats span{font-size:12px;color:#CFE3CF}
+@keyframes tlFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-10px) rotate(-1.2deg)}}
+@keyframes tlPing{0%{opacity:.9;transform:translate(-50%,-50%) scale(.6)}80%,100%{opacity:0;transform:translate(-50%,-50%) scale(2.6)}}
+@media(min-width:820px){.tl-hero{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center;padding:30px}.tl-hero h1{font-size:56px}.tl-stats{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tl-ex{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#EEF6EB}
+.tl-ex img{display:block;width:100%;height:auto}
+.tl-hot{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:2px solid #fff;background:#205C40;color:#fff;font:600 13px var(--mono);display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);padding:0}
+.tl-hot::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid #43B02A;opacity:0}
+.tl-hot.on{background:#43B02A;color:#0A1510} .tl-hot.on::after{animation:tlHot 1.6s ease-out infinite}
+@keyframes tlHot{0%{opacity:.9;transform:scale(.8)}100%{opacity:0;transform:scale(1.7)}}
+.tl-leg{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.tl-leg button{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-left:4px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;background:var(--surface);transition:border-color .25s,background .25s}
+.tl-leg button.on{border-left-color:var(--lime);background:var(--sunk)}
+.tl-leg button:focus-visible,.tl-hot:focus-visible,.tl-seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tl-cap{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:820px){.tl-cap{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start}}
+.tl-bin{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:#cfd8cf;border:1px solid var(--line)}
+.tl-bin .floor{position:absolute;inset:0;background:radial-gradient(circle at 50% 55%,#6b5a43 0,#3d3327 60%,#1f1a14 100%)}
+.tl-bin .it{position:absolute;border-radius:40% 55% 45% 60%}
+.tl-bin .dark{position:absolute;inset:0;background:#000;opacity:0;transition:opacity .7s}
+.tl-bin .flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 45%,#fff 0,rgba(255,255,255,.7) 35%,rgba(255,255,255,0) 75%);opacity:0}
+.tl-bin .lidshade{position:absolute;left:0;right:0;top:0;height:100%;background:linear-gradient(#2c7a4f,#205C40);transform:translateY(-101%);transition:transform .8s cubic-bezier(.3,.8,.3,1)}
+.tl-bin .box{position:absolute;border:2px solid #43B02A;border-radius:4px;opacity:0;transform:scale(1.15);transition:opacity .3s,transform .3s}
+.tl-bin .box b{position:absolute;left:-2px;top:-20px;font:600 11px var(--mono);background:#43B02A;color:#0A1510;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.tl-bin .box.bad{border-color:#E5484D} .tl-bin .box.bad b{background:#E5484D;color:#fff}
+.tl-bin .chip{position:absolute;left:10px;right:10px;bottom:10px;background:#fff;color:#13241B;border-radius:8px;padding:8px 10px;font-size:13px;display:flex;gap:8px;align-items:center;box-shadow:0 6px 18px rgba(0,0,0,.4);opacity:0;transform:translateY(16px);transition:opacity .4s,transform .4s}
+.tl-bin .chip i{width:10px;height:10px;border-radius:50%;background:#E5484D;flex:none}
+.tl-bin .tagl{position:absolute;left:10px;top:10px;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:#fff;background:rgba(0,0,0,.55);padding:3px 7px;border-radius:4px}
+.tl-bin[data-s="1"] .lidshade{transform:translateY(0)}
+.tl-bin[data-s="2"] .dark,.tl-bin[data-s="3"] .dark{opacity:.86}
+.tl-bin[data-s="2"] .lidshade,.tl-bin[data-s="3"] .lidshade,.tl-bin[data-s="4"] .lidshade,.tl-bin[data-s="5"] .lidshade{transform:translateY(-101%);transition:none}
+.tl-bin[data-s="3"] .flash{animation:tlFlash .9s ease-out}
+.tl-bin[data-s="4"] .dark,.tl-bin[data-s="5"] .dark{opacity:.25}
+.tl-bin[data-s="4"] .box,.tl-bin[data-s="5"] .box{opacity:1;transform:scale(1)}
+.tl-bin[data-s="5"] .chip{opacity:1;transform:none}
+@keyframes tlFlash{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+.tl-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.tl-steps li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;padding:9px 10px;border-radius:6px;border:1px solid transparent;transition:background .3s,border-color .3s;cursor:pointer}
+.tl-steps li .n{font:600 13px var(--mono);color:var(--muted);padding-top:2px}
+.tl-steps li.on{background:var(--sunk);border-color:var(--line)} .tl-steps li.on .n{color:var(--accent)}
+.tl-bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden} .tl-bar i{display:block;height:100%;width:0;background:var(--lime);transition:width .5s}
+.tl-seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden;max-width:520px}
+.tl-seg button{all:unset;box-sizing:border-box;cursor:pointer;padding:9px 8px;font-weight:600;font-size:14px;min-height:44px;color:var(--muted);border-right:1px solid var(--line);text-align:center;display:flex;align-items:center;justify-content:center}
+.tl-seg button:last-child{border-right:0} .tl-seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.tl-meters{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.tl-meter{display:flex;flex-direction:column;gap:6px} .tl-meter .tr{height:10px;border-radius:5px;background:var(--sunk);overflow:hidden}
+.tl-meter .tr i{display:block;height:100%;background:var(--accent);border-radius:5px;width:0;transition:width .7s cubic-bezier(.3,.8,.3,1)}
+.tl-chips{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.tl-chips div{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;background:var(--surface)}
+.tl-chips div.fire{border-color:#E5A23C;background:var(--warn-soft)}
+.tl-chips span{font:600 11px var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+#v-thinklid details{border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+#v-thinklid summary{cursor:pointer;padding:12px 14px;font-weight:600;min-height:44px;display:flex;align-items:center}
+#v-thinklid details > div{padding:0 14px 12px}
+#v-thinklid th{white-space:normal}
+.tl-wide{border-radius:8px;overflow:hidden;position:relative} .tl-wide img{display:block;width:100%;height:150px;object-fit:cover;animation:tlPan 16s ease-in-out infinite alternate}
+@keyframes tlPan{from{object-position:20% 50%;transform:scale(1.02)}to{object-position:80% 50%;transform:scale(1.12)}}
+.tl-cam{display:grid;gap:12px;grid-template-columns:120px minmax(0,1fr);align-items:center} .tl-cam img{width:120px;height:auto;animation:tlFloat 8s ease-in-out infinite}
+.rvready .rv{opacity:0;transform:translateY(18px);transition:opacity .6s,transform .6s} .rvready .rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.tl-stage .lid,.tl-stage .ring,.tl-wide img,.tl-cam img,.tl-hot.on::after{animation:none}.rvready .rv{opacity:1;transform:none;transition:none}.tl-bin *{transition:none!important}}
+.grid.ocean{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.ostats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.ostats div{display:flex;flex-direction:column;gap:2px;padding:12px 14px;background:var(--sunk);border-radius:8px}
+.ostats b{font-size:22px;color:var(--accent)}
+#oceanLid th{white-space:normal}
+#oceanLid h3{margin-top:6px}
+.ocalc .pill{align-self:flex-start}
+.ocalc label{display:flex;flex-direction:column;gap:6px;font-weight:600}
+.ocalc input{font:inherit;font-family:"IBM Plex Mono",monospace;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);width:100%;min-width:0}
+.ocalc input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tile{background:var(--sunk);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.tile b{font-family:var(--mono);font-size:22px;font-weight:500}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)} .pill.acc{background:var(--accent-soft);color:var(--accent)}
+.btn{background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;min-height:40px;text-decoration:none;display:inline-flex;align-items:center}
+.btn.ghost{background:transparent;color:var(--accent)}
+.card{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:6px;text-decoration:none;color:var(--ink);background:var(--surface)}
+.card:hover{background:var(--accent-soft)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap}
+td.r,th.r{text-align:right}
+figure{margin:0;display:flex;flex-direction:column;gap:8px}
+figure svg{max-width:100%;height:auto;color:var(--ink)}
+figcaption{font-size:13px;color:var(--muted);max-width:65ch}
+.lanes{display:grid;grid-template-columns:130px repeat(4,minmax(170px,1fr));min-width:820px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.lh{padding:8px 10px;background:var(--sunk);border-bottom:1px solid var(--line);display:flex;flex-direction:column}
+.lh span{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.lh.now{background:var(--accent);color:var(--accent-ink)} .lh.now span{color:var(--accent-ink)}
+.ln{padding:10px;font-weight:600;border-top:1px solid var(--line);font-size:14px}
+.ln.core{color:var(--accent)}
+.lc{padding:8px;border-top:1px solid var(--line);border-left:1px solid var(--line);display:flex;flex-direction:column;gap:6px;min-width:0}
+.lc.now{background:var(--accent-soft)}
+.rc{font-size:12.5px;line-height:1.3;padding:5px 8px;border-radius:5px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.rc.ex{border-color:var(--accent);border-left-width:4px}
+.rc.fx{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.rc.pr{border-style:dashed;border-color:var(--muted);color:var(--muted)}
+.meter{height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;min-width:70px}
+.meter i{display:block;height:100%;background:var(--accent)} .meter.hi i{background:var(--crit)}
+
+/* ---------- AR field view: a single dark visual world, sized like a video ---------- */
+.stage{container-type:inline-size;position:relative;aspect-ratio:4/3;overflow:hidden;border-radius:8px;background:#000;color:var(--hud);font-family:var(--mono);user-select:none}
+.stage:fullscreen{border-radius:0;width:100vw;height:100vh;aspect-ratio:auto}
+.world{position:absolute;inset:0;transform-origin:50% 60%;will-change:transform}
+.world img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s}
+.world img.on{opacity:1}
+.shade{position:absolute;inset:0;background:linear-gradient(rgba(0,12,4,.38),rgba(0,12,4,.12) 40%,rgba(0,12,4,.45));transition:background .5s}
+.stage.dim .shade{background:rgba(0,10,4,.72)}
+.hud{position:absolute;font-size:1.5cqw;letter-spacing:.06em;text-transform:uppercase;line-height:1.35}
+.chip{background:var(--hud-bg);border:1px solid var(--hud-dim);padding:.5cqw 1cqw;white-space:nowrap}
+.hud.tl{left:3%;top:4%} .hud.tr{right:3%;top:4%} .hud.tc{left:50%;top:3.2%;transform:translateX(-50%);text-align:center}
+.hud.bb{left:3%;right:3%;bottom:4.5%;display:flex;justify-content:space-between;align-items:center;gap:1cqw}
+.ticks{display:flex;gap:.7cqw;align-items:flex-end}
+.ticks i{width:1.3cqw;height:1.7cqw;border:1px solid var(--hud-dim);border-top-width:.4cqw;opacity:.45}
+.ticks i.s{opacity:1} .ticks i.l{background:var(--hud);opacity:1}
+.bcard{position:absolute;width:18.5%;background:var(--hud-bg);border:1px solid var(--hud-dim);font-size:1.25cqw;letter-spacing:.05em;text-transform:uppercase;opacity:0;transform:translateY(1.2cqw);transition:opacity .35s,transform .35s;line-height:1.3}
+.bcard.on{opacity:1;transform:none}
+.bcard::before,.bcard::after{content:"";position:absolute;width:1.4cqw;height:1.4cqw;border:2px solid var(--hud)}
+.bcard::before{left:-1px;top:-1px;border-right:0;border-bottom:0} .bcard::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+.bcard .hd{padding:.5cqw .8cqw;border-bottom:1px solid var(--hud-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bcard .bd{display:flex;gap:.8cqw;padding:.7cqw .8cqw;align-items:center}
+.bcard .pc{font-size:3.6cqw;font-weight:600;line-height:1}
+.bcard .pc small{font-size:1.5cqw}
+.bcard .mt{font-size:1.05cqw;opacity:.9}
+.binico{width:2.3cqw;height:3cqw;border:1.5px solid var(--hud);border-top-width:.5cqw;position:relative;flex:none}
+.binico i{position:absolute;left:0;right:0;bottom:0;background:var(--hud);opacity:.75}
+.bcard .ac{margin:0 .8cqw .8cqw;padding:.45cqw;text-align:center;border:1px solid var(--hud-dim);font-weight:600}
+.bcard.lift .ac{background:var(--hud);color:#04200d;border-color:var(--hud)}
+.bcard.done .ac{background:transparent;color:var(--hud)}
+.tag{position:absolute;background:var(--hud-bg);border:1px dashed var(--hud);padding:.4cqw .8cqw;font-size:1.15cqw;letter-spacing:.05em;text-transform:uppercase;opacity:0;transition:opacity .35s;white-space:nowrap}
+.tag.on{opacity:1}
+.ret{position:absolute;width:5cqw;height:5cqw;margin:-2.5cqw 0 0 -2.5cqw;border:1px solid var(--hud);border-radius:50%;transition:left .5s,top .5s,opacity .3s;opacity:0}
+.ret::after{content:"";position:absolute;left:50%;top:50%;width:.6cqw;height:.6cqw;margin:-.3cqw;background:var(--hud);border-radius:50%}
+.ret.on{opacity:.9}
+.ovl{position:absolute;left:14%;right:14%;top:17%;background:var(--hud-bg);border:1px solid var(--hud-dim);font-size:1.35cqw;letter-spacing:.05em;text-transform:uppercase;opacity:0;transition:opacity .4s;pointer-events:none}
+.ovl.on{opacity:1}
+.ovl .hd{padding:.8cqw 1.2cqw;border-bottom:1px solid var(--hud-dim);display:flex;justify-content:space-between}
+.ovl .bd{padding:1.2cqw;display:flex;gap:1.6cqw}
+.ovl svg{width:52%;height:auto;flex:none}
+.ovl table{font-size:1.25cqw;font-family:var(--mono);color:var(--hud)}
+.ovl td,.ovl th{border:0;padding:.25cqw .5cqw;color:var(--hud);font-size:1.25cqw}
+.stats{flex:1;display:grid;grid-template-columns:1fr auto;gap:.5cqw 1.5cqw;align-content:start}
+.stats b{text-align:right;font-weight:600}
+.ovl table{width:auto;flex:1}
+.snaps{display:grid;grid-template-columns:1fr 1fr;gap:1cqw;flex:0 0 52%;min-width:0}
+.snaps div{min-width:0;aspect-ratio:4/3;background-size:cover;background-position:center;border:1px solid var(--hud-dim);filter:grayscale(1) sepia(1) hue-rotate(70deg) saturate(2.2) brightness(.95)}
+.prog{margin:0 1.2cqw 1.2cqw;border:1px solid var(--hud-dim);height:1.4cqw}
+.prog i{display:block;height:100%;background:var(--hud);width:0}
+.playbig{position:absolute;inset:0;margin:auto;width:16cqw;height:16cqw;border-radius:50%;border:2px solid var(--hud);background:var(--hud-bg);color:var(--hud);font-size:6cqw;cursor:pointer;display:grid;place-items:center;padding-left:1cqw}
+.ctrl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ctrl input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<header><div class="bar"><div class="brand"><img class="wm wl" src="img/matter-wordmark.svg" alt="Matter"><img class="wm wd" src="img/matter-wordmark-reverse.svg" alt="Matter"><sup class="reg">&reg;</sup><span class="prod">ThinkOS 2027</span></div><span class="small muted">Connected demo: field view, reseller agent, referrals and FAQs</span></div></header>
+<nav aria-label="Sections"><div class="tabs" id="tabs"></div></nav>
+<div id="view">
+
+<section id="v-overview" class="col">
+  <div style="display:flex;flex-direction:column;gap:10px;padding-top:8px">
+    <h1>The operating system for a new age of waste and sustainability management</h1>
+    <p class="muted" style="max-width:62ch;font-size:17px">ThinkLid and Park devices on the bins are the core of the system. This demo joins the pieces of the 2027 version of ThinkOS: what a ranger or reseller sees in the field, how that becomes an order, and how resellers grow through loyalty and referrals.</p>
+  </div>
+  <section class="panel">
+    <h2>How the pieces connect</h2>
+    <figure>
+      <svg viewBox="0 0 640 430" role="img" aria-label="ThinkLid and Park devices are the core: their readings and field scans feed the Bin Map; the reseller agent turns gaps on the map into orders and bookings; active devices earn loyalty status and referrals bring new customers back in; Claude and Jev sit behind the agent.">
+        <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+        <g fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="20" y="20" width="180" height="56" rx="6"/><rect x="230" y="20" width="180" height="56" rx="6" stroke="#43B02A" stroke-width="2.5"/>
+          <rect x="20" y="140" width="390" height="56" rx="6"/>
+          <rect x="20" y="260" width="390" height="56" rx="6"/>
+          <rect x="20" y="354" width="180" height="56" rx="6"/><rect x="230" y="354" width="180" height="56" rx="6"/>
+          <rect x="470" y="232" width="150" height="48" rx="6" stroke-dasharray="5 4"/><rect x="470" y="296" width="150" height="48" rx="6" stroke-dasharray="5 4"/>
+          <path d="M110 76V138" marker-end="url(#ah)"/><path d="M320 76V138" marker-end="url(#ah)"/>
+          <path d="M215 196V258" marker-end="url(#ah)"/>
+          <path d="M110 316V352" marker-end="url(#ah)"/><path d="M320 352V318" marker-end="url(#ah)"/>
+          <path d="M470 256H412" marker-end="url(#ah)"/><path d="M470 320H440V300H412" marker-end="url(#ah)"/>
+        </g>
+        <g fill="currentColor" font-family="Poppins, sans-serif" font-size="13" text-anchor="middle">
+          <text x="110" y="45" font-weight="600">AR field view</text><text x="110" y="62" font-size="11">glasses, May 2027</text>
+          <text x="320" y="45" font-weight="600">ThinkLid and Park devices</text><text x="320" y="62" font-size="11">the core: fill, lid, lifts</text>
+          <text x="215" y="165" font-weight="600">Bin Map and control centre</text><text x="215" y="182" font-size="11">every bin, with or without hardware</text>
+          <text x="215" y="285" font-weight="600">Reseller agent</text><text x="215" y="302" font-size="11">orders, stock, bookings, predictions</text>
+          <text x="110" y="379" font-weight="600">Loyalty</text><text x="110" y="396" font-size="11">status on active devices</text>
+          <text x="320" y="379" font-weight="600">Referral program</text><text x="320" y="396" font-size="11">reward per referred device</text>
+          <text x="545" y="253" font-weight="600">Claude</text><text x="545" y="269" font-size="11">reads, plans, writes</text>
+          <text x="545" y="317" font-weight="600">Jev</text><text x="545" y="333" font-size="11">scores decisions</text>
+          <g font-size="11" text-anchor="start"><text x="118" y="112">scans, issues</text><text x="328" y="112">fill, lock events</text><text x="223" y="232">unlocked bins, alerts, low stock</text><text x="118" y="340">active devices</text><text x="328" y="340">new customers</text></g>
+        </g>
+      </svg>
+      <figcaption>The ThinkLid and Park devices, outlined in green, are the core: everything else acts on what they record. Their readings flow to the Bin Map, the reseller agent acts on what the map shows, and loyalty and referrals feed growth back in.</figcaption>
+    </figure>
+  </section>
+  <section class="panel"><h2>Open each piece</h2>
+    <div class="grid">
+      <a class="card" href="#thinklid"><b>ThinkLid</b><span class="small muted">The product page for the lid: modules, an exploded view, how a capture works and the three camera builds.</span><span class="pill acc">Product page</span></a>
+      <a class="card" href="#ecosystem"><b>Ecosystem roadmap</b><span class="small muted">ThinkOS at the centre of five editions: Commercial, Smart Home, Public, Medical and Facility Management.</span><span class="pill acc">Roadmap</span></a>
+      <a class="card" href="#patents"><b>Patents</b><span class="small muted">How the three waste patent families support each element of the system, and where the gaps are.</span><span class="pill acc">Map, not legal advice</span></a>
+      <a class="card" href="#field-view"><b>AR field view</b><span class="small muted">A commercial laneway run through the glasses: scan, lift, log issues, send to the control centre.</span><span class="pill acc">Demo, simulated readings</span></a>
+      <a class="card" href="#agent"><b>Reseller agent</b><span class="small muted">Site list to order, live stock, bookings, predictions, loyalty and limits for Solo and Premier Waste.</span><span class="pill acc">Prototype, sample data</span></a>
+      <a class="card" href="#referrals"><b>Referral program</b><span class="small muted">Public page, sign-up, member portal and the Matter IO review and payment run.</span><span class="pill acc">Prototype</span></a>
+      <a class="card" href="#faqs"><b>FAQs</b><span class="small muted">50 questions on plans, installation, the agent, loyalty and referrals.</span><span class="pill warn">Draft, 8 answers to confirm</span></a>
+    </div></section>
+  <div class="grid">
+    <section class="panel"><h3>Prices in this version</h3>
+      <div class="scroll"><table><tbody>
+        <tr><td>Bin Map</td><td class="r">Free with 5 or more GravityLocks</td></tr>
+        <tr><td>Operations</td><td class="r num">$99 a month to 250 bins, $190 above</td></tr>
+        <tr><td>Installation</td><td class="r num">$45 per bin, one visit</td></tr>
+        <tr><td>Reseller onboarding</td><td class="r num">$199</td></tr>
+      </tbody></table></div><p class="small muted">Australian prices, plus GST.</p></section>
+    <section class="panel"><h3>Dates</h3>
+      <div class="scroll"><table><tbody>
+        <tr><td>Australian launch</td><td class="r">February 2027</td></tr>
+        <tr><td>AR/AI reporting glasses</td><td class="r">May 2027</td></tr>
+        <tr><td>United States and Canada</td><td class="r">May or June 2027</td></tr>
+        <tr><td>ThinkLid and ThinkCam</td><td class="r">Mid 2027</td></tr>
+      </tbody></table></div><p class="small muted">Designed for Australia, New Zealand, Singapore and Malaysia.</p></section>
+  </div>
+  <section class="panel"><h3>What is real in this demo</h3>
+    <div class="scroll"><table><thead><tr><th>Piece</th><th>State</th><th>What is simulated</th></tr></thead><tbody>
+      <tr><td>AR field view</td><td><span class="pill acc">Demo</span></td><td>Fill levels, lock states and run results are invented; the two photos are real Melbourne bins.</td></tr>
+      <tr><td>Reseller agent</td><td><span class="pill acc">Prototype</span></td><td>Clients, orders and stock are samples; lock and sensor prices are sample values; Jev decisions follow rules.</td></tr>
+      <tr><td>Referral program</td><td><span class="pill acc">Prototype</span></td><td>Reward amounts and the 10% discount are placeholders; no email is sent.</td></tr>
+      <tr><td>FAQs</td><td><span class="pill warn">Draft</span></td><td>Eight answers carry placeholders.</td></tr>
+      <tr><td>Database schema and spec</td><td><span class="pill warn">Draft</span></td><td>Held outside this page.</td></tr>
+    </tbody></table></div></section>
+  <div class="foot"><img class="wm wl" src="img/matter-wordmark.svg" alt="Matter"><img class="wm wd" src="img/matter-wordmark-reverse.svg" alt="Matter"><sup class="reg">&reg;</sup><span>ThinkOS, ThinkLid and ThinkLid-Park. Waste patent families held by Xorro Pty Ltd.</span></div>
+</section>
+
+<section id="v-thinklid" class="col" hidden>
+  <div class="tl-hero">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span class="pill" style="align-self:flex-start">Options from mid 2027</span>
+      <h1>ThinkLid<i>.</i></h1>
+      <p>The 240 L lid that lets a bin report for itself. It swaps onto an existing bin and carries the sensor, the lock and the camera in one moulded part.</p>
+      <div class="tl-sw" id="tlSw" role="group" aria-label="ThinkLid version">
+        <button type="button" data-c="eye" aria-pressed="true"><i style="background:#43B02A"></i>Eye</button>
+        <button type="button" data-c="shred" aria-pressed="false"><i style="background:#1F86B4"></i>Shred</button>
+        <button type="button" data-c="bottle" aria-pressed="false"><i style="background:#63509A"></i>Bottle</button>
+      </div>
+    </div>
+    <div class="tl-stage">
+      <img class="lid" id="tlLid" src="img/thinklid-lid.webp" alt="ThinkLid 240 L lid seen from below, with the camera and grille at the centre">
+      <span class="ring" aria-hidden="true"></span>
+      <img class="lens" src="img/thinklid-lens.webp" alt="Close view of the camera lens behind the grille">
+    </div>
+    <div class="tl-stats">
+      <div><b>1.5 kg</b><span>lid weight</span></div>
+      <div><b>2+ yrs</b><span>sealed battery, no charging*</span></div>
+      <div><b>Zero lux</b><span>flash sees colour in a closed bin</span></div>
+      <div><b>IP67</b><span>ingress rating*</span></div>
+    </div>
+  </div>
+  <section class="panel rv"><h2>Three versions</h2>
+    <p class="small muted" style="margin:0">One lid body, three openings. Each version fits the same 240 L bin and reports to ThinkOS.</p>
+    <div class="tl-cols">
+      <button type="button" class="tl-col" data-c="eye"><img src="img/thinklid-lid.webp" alt="ThinkLid-Eye, green, seen from below with the camera at the centre" loading="lazy"><b>Eye</b><span class="small">Camera in a closed lid</span><span class="small muted">Flags contamination in every deposit</span></button>
+      <button type="button" class="tl-col" data-c="shred"><img src="img/thinklid-shred.webp" alt="ThinkLid Shred, blue, seen from above with a paper slot" loading="lazy"><b>Shred</b><span class="small">Paper slot for secure documents</span><span class="small muted">Paper goes in without opening the bin</span></button>
+      <button type="button" class="tl-col" data-c="bottle"><img src="img/thinklid-bottle.webp" alt="ThinkLid Bottle, purple, seen from above with a round star-cut opening" loading="lazy"><b>Bottle</b><span class="small">Round opening for bottles and cans</span><span class="small muted">Keeps other waste out of the container stream</span></button>
+    </div>
+    <p class="small muted" style="margin:0">Shred and Bottle images are from the ThinkOS deck of April 2026, shown in the deck's colours. The Eye is seen from below; Shred and Bottle from above.</p>
+  </section>
+  <section class="panel rv"><h2>One lid, four modules</h2>
+    <div class="grid">
+      <div class="card" style="border-left-color:var(--lime)"><div class="row"><b>Sense</b><span class="grow"></span><span class="pill good">In service</span></div><span class="small">Fill level, temperature, lid opens and lifts. A lift shows as a drop in fill, which is the proof of service.</span></div>
+      <div class="card" style="border-left-color:var(--lime)"><div class="row"><b>Lock</b><span class="grow"></span><span class="pill acc">Option</span></div><span class="small">A Franzen gravity lock or an electronic lock, fitted to the same lid.</span></div>
+      <div class="card" style="border-left-color:var(--lime)"><div class="row"><b>Eye</b><span class="grow"></span><span class="pill acc">Option</span></div><span class="small">A camera at the centre of the lid. It photographs the inside of the bin each time the lid shuts and flags what should not be there.</span></div>
+      <div class="card" style="border-left-color:var(--lime)"><div class="row"><b>Odour layer</b><span class="grow"></span><span class="pill acc">Option</span></div><span class="small">A carbon filter and grille for food and organics bins. The lens looks through it.</span></div>
+    </div>
+    <p class="small muted">The module carrier is recycled polypropylene. A lid moulded from river and beach plastic is proposed: see <a href="#ecosystem">Ocean-plastic ThinkLids</a>.</p>
+  </section>
+  <section class="panel rv"><div class="head"><h2>Inside the lid</h2><span class="small muted">Tap a number</span></div>
+    <div class="tl-ex" id="tlEx">
+      <img src="img/thinklid-exploded.webp" alt="Exploded view of the lid: the lid, the carbon pad and the grille with the lens at its centre">
+      <button class="tl-hot" style="left:57%;top:20%" data-h="0" aria-label="Lid">1</button>
+      <button class="tl-hot" style="left:56%;top:54%" data-h="1" aria-label="Carbon pad">2</button>
+      <button class="tl-hot" style="left:55%;top:77%" data-h="2" aria-label="Grille">3</button>
+      <button class="tl-hot" style="left:16%;top:78%" data-h="3" aria-label="Lens">4</button>
+    </div>
+    <div class="tl-leg" id="tlLeg">
+      <button data-h="0"><b>1 Lid</b><span class="small muted">Fits a 240 L wheelie bin and swaps onto bins already in the field.</span></button>
+      <button data-h="1"><b>2 Carbon pad</b><span class="small muted">The optional odour layer. Left out where bins are cleared daily.</span></button>
+      <button data-h="2"><b>3 Grille</b><span class="small muted">Covers the pad and holds the camera at the lid centre.</span></button>
+      <button data-h="3"><b>4 Lens</b><span class="small muted">Wide angle, recessed and anti-fog, with the whole bin opening in view.</span></button>
+    </div>
+  </section>
+  <section class="panel rv"><div class="head"><h2>Every capture</h2><button class="btn ghost" id="tlPlay" type="button">Pause</button></div>
+    <div class="tl-cap">
+      <div>
+        <div class="tl-bin" id="tlBin" data-s="0" role="img" aria-label="Illustration of the inside of a food bin as the lid camera takes a photo and flags a glass bottle">
+          <div class="floor"></div>
+          <span class="it" style="left:14%;top:22%;width:26%;height:24%;background:#c9843a"></span>
+          <span class="it" style="left:44%;top:16%;width:22%;height:20%;background:#7fae3e"></span>
+          <span class="it" style="left:22%;top:52%;width:30%;height:26%;background:#d9b65a"></span>
+          <span class="it" style="left:60%;top:44%;width:13%;height:36%;background:#9fd6cf;border-radius:30% 30% 12% 12%;opacity:.9"></span>
+          <span class="it" style="left:72%;top:18%;width:16%;height:16%;background:#b5552f"></span>
+          <div class="dark"></div><div class="flash"></div><div class="lidshade"></div>
+          <span class="box" style="left:12%;top:20%;width:58%;height:60%"><b>Food</b></span>
+          <span class="box bad" style="left:58%;top:42%;width:17%;height:40%"><b>Glass</b></span>
+          <span class="tagl" id="tlTag">Lid open</span>
+          <div class="chip"><i></i><span><b>Glass out of stream</b> · sent to ThinkOS</span></div>
+        </div>
+        <div class="tl-bar" style="margin-top:8px"><i id="tlProg"></i></div>
+        <p class="small muted" style="margin:8px 0 0">Illustration with a sample finding. The photo is taken only with the lid shut, so people are never in frame.</p>
+      </div>
+      <ol class="tl-steps" id="tlSteps">
+        <li data-s="1"><span class="n">01</span><span><b>Lid closes</b><br><span class="small muted">A motion sensor wakes the module from sleep.</span></span></li>
+        <li data-s="2"><span class="n">02</span><span><b>Lid settles</b><br><span class="small muted">The camera powers up, about two seconds after the close.</span></span></li>
+        <li data-s="3"><span class="n">03</span><span><b>Flash</b><br><span class="small muted">One colour photo of the whole bin opening, in the dark.</span></span></li>
+        <li data-s="4"><span class="n">04</span><span><b>Recognise</b><br><span class="small muted">On the lid, or in ThinkOS for the Cloud build.</span></span></li>
+        <li data-s="5"><span class="n">05</span><span><b>Report</b><br><span class="small muted">The finding goes to ThinkOS and the module goes back to sleep.</span></span></li>
+      </ol>
+    </div>
+  </section>
+  <section class="panel rv"><h2>Choose your build</h2>
+    <p class="small muted" style="margin:0">All three builds share the housing, camera, flash and ThinkOS link. They differ in where the AI runs and whether the lid carries the odour layer.</p>
+    <div class="tl-seg" id="tlSeg" role="group" aria-label="Build">
+      <button type="button" data-b="0" aria-pressed="true">A · Edge + odour</button>
+      <button type="button" data-b="1" aria-pressed="false">B · Edge</button>
+      <button type="button" data-b="2" aria-pressed="false">C · Cloud</button>
+    </div>
+    <div class="tl-meters">
+      <div class="tl-meter"><div class="row"><span class="small">Modelled battery life*</span><span class="grow"></span><b class="num" id="tlM0"></b></div><div class="tr"><i id="tlB0"></i></div></div>
+      <div class="tl-meter"><div class="row"><span class="small">Data per bin, a month</span><span class="grow"></span><b class="num" id="tlM1"></b></div><div class="tr"><i id="tlB1"></i></div></div>
+      <div class="tl-meter"><div class="row"><span class="small">Energy per capture</span><span class="grow"></span><b class="num" id="tlM2"></b></div><div class="tr"><i id="tlB2"></i></div></div>
+    </div>
+    <div class="scroll"><table><tbody id="tlRows"></tbody></table></div>
+  </section>
+  <section class="panel rv"><h2>What it reports</h2>
+    <div class="tl-wide"><img src="img/thinklid-lens-wide.webp" alt="The camera lens at the centre of the grille"></div>
+    <div class="tl-chips">
+      <div><span>Recycling</span><b>Bagged recyclables</b></div>
+      <div><span>Recycling</span><b>Soft plastics</b></div>
+      <div><span>Organics</span><b>Food in the wrong bin</b></div>
+      <div><span>Residual</span><b>Glass out of stream</b></div>
+      <div class="fire"><span>Hazardous · fire risk</span><b>Batteries and e-waste</b></div>
+      <div><span>Same image</span><b>Fill level</b></div>
+    </div>
+    <p class="small muted" style="margin:0">Every finding lands in ThinkOS with a confidence score and a time stamp. Fire-risk detections are sent at once on every build.</p>
+  </section>
+  <section class="panel rv"><h2>Specifications</h2>
+    <details><summary>Camera and flash</summary><div class="scroll"><table><tbody>
+      <tr><td>Image sensor</td><td>1.5 MP colour, global shutter</td></tr><tr><td>Field of view</td><td>130 to 140° wide angle; whole bin opening in view</td></tr><tr><td>Flash</td><td>4 white LEDs for true colour at zero lux</td></tr><tr><td>Window</td><td>Recessed, hydrophobic and anti-fog</td></tr><tr><td>Position</td><td>Lid centre, facing into the bin</td></tr></tbody></table></div></details>
+    <details><summary>Capture and power</summary><div class="scroll"><table><tbody>
+      <tr><td>Wake</td><td>Lid close, sensed by a motion sensor</td></tr><tr><td>Capture</td><td>One flash photo once the lid settles</td></tr><tr><td>Daily cap</td><td>Configurable; design point 12 captures a day</td></tr><tr><td>Supply</td><td>One sealed cell, no charging, or the host lid's power</td></tr><tr><td>Battery life</td><td>2+ years, all builds*</td></tr></tbody></table></div></details>
+    <details><summary>Connectivity and fit</summary><div class="scroll"><table><tbody>
+      <tr><td>Network</td><td>Built-in LTE-M / NB-IoT, or the host lid's radio</td></tr><tr><td>Firmware</td><td>Over-the-air updates</td></tr><tr><td>Fits</td><td>ThinkLid 240 L lid; swaps onto existing bins</td></tr><tr><td>Lock options</td><td>Franzen gravity lock or electronic lock</td></tr><tr><td>Housing</td><td>Recycled PP carrier with sealed gasket</td></tr><tr><td>Temperature</td><td>−20 to +85 °C components, for lids in full sun</td></tr></tbody></table></div></details>
+    <details><summary>Privacy and security</summary><div class="scroll"><table><tbody>
+      <tr><td>Capture</td><td>Lid shut only, facing into the bin</td></tr><tr><td>Encryption</td><td>DTLS with AES-128 in transit; encrypted at rest in ThinkOS</td></tr><tr><td>Access</td><td>Role-based in ThinkOS; image retention configurable</td></tr><tr><td>Warranty</td><td>12 months, extendable under MatterCare</td></tr></tbody></table></div></details>
+  </section>
+  <section class="panel rv"><h2>For open bins: ThinkCam</h2>
+    <div class="tl-cam"><img src="img/thinkcam.webp" alt="ThinkCam, a small camera unit with a lens and a green button">
+      <div style="display:flex;flex-direction:column;gap:6px"><span class="small">ThinkLid suits bins that stay closed. Where lids stay open during service, such as a kitchen scraping station, ThinkCam mounts above the bins and photographs each deposit.</span><span class="small muted">Bins from 120 L to 1,100 L. Designed for high-pressure bin washing.*</span></div></div>
+  </section>
+  <p class="small muted">* Design targets for pre-release products; they may change. Battery figures assume up to 12 captures a day. Images and figures are from the ThinkLid-Eye datasheet, 10-2026.</p>
+  <div class="foot"><img class="wm wl" src="img/matter-wordmark.svg" alt="Matter"><img class="wm wd" src="img/matter-wordmark-reverse.svg" alt="Matter"><sup class="reg">&reg;</sup><span>ThinkOS, ThinkLid and ThinkLid-Park. Waste patent families held by Xorro Pty Ltd.</span></div>
+</section>
+<section id="v-ecosystem" class="col" hidden>
+  <div style="display:flex;flex-direction:column;gap:10px;padding-top:8px">
+    <h1>ThinkOS ecosystem roadmap</h1>
+    <p class="muted" style="max-width:64ch;font-size:17px">One core, five editions. The core is the ThinkLid and Park devices on the bins and the ThinkOS platform that reads them. Each edition reuses both and adds what its setting needs.</p>
+  </div>
+  <section class="panel">
+    <h2>Devices at the core, ThinkOS around them</h2>
+    <figure>
+      <svg viewBox="0 0 640 520" role="img" aria-label="ThinkLid and Park devices at the centre, wrapped by the ThinkOS platform, connected to five editions: Commercial, Smart Home, Public, Medical and Facility Management.">
+        <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+        <circle cx="320" cy="270" r="100" fill="none" stroke="#43B02A" stroke-width="2.5"/>
+        <circle cx="320" cy="270" r="56" fill="#205C40"/>
+        <g fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="235" y="26" width="170" height="52" rx="6"/>
+          <rect x="452" y="170" width="170" height="52" rx="6"/>
+          <rect x="372" y="424" width="170" height="52" rx="6"/>
+          <rect x="98" y="424" width="170" height="52" rx="6"/>
+          <rect x="18" y="170" width="170" height="52" rx="6"/>
+          <path d="M320 80V168" marker-start="url(#ah2)" marker-end="url(#ah2)"/>
+          <path d="M450 214L414 230" marker-start="url(#ah2)" marker-end="url(#ah2)"/>
+          <path d="M432 422L381 352" marker-start="url(#ah2)" marker-end="url(#ah2)"/>
+          <path d="M208 422L259 352" marker-start="url(#ah2)" marker-end="url(#ah2)"/>
+          <path d="M190 214L226 230" marker-start="url(#ah2)" marker-end="url(#ah2)"/>
+        </g>
+        <g fill="#FFFFFF" font-family="Poppins, sans-serif" text-anchor="middle" font-weight="600">
+          <text x="320" y="260" font-size="13">ThinkLid</text><text x="320" y="277" font-size="13">and Park</text><text x="320" y="293" font-size="11" font-weight="400">devices</text>
+        </g>
+        <g fill="currentColor" font-family="Poppins, sans-serif" font-size="13" text-anchor="middle">
+          <text x="320" y="198" font-weight="600" font-size="12">ThinkOS platform</text>
+          <text x="320" y="345" font-size="10.5">Bin Map, agent,</text><text x="320" y="359" font-size="10.5">AIRS, reports</text>
+          <text x="320" y="48" font-weight="600">Commercial</text><text x="320" y="65" font-size="11">operators and resellers</text>
+          <text x="537" y="192" font-weight="600">Smart Home</text><text x="537" y="209" font-size="11">households</text>
+          <text x="457" y="446" font-weight="600">Public</text><text x="457" y="463" font-size="11">councils and rangers</text>
+          <text x="183" y="446" font-weight="600">Medical</text><text x="183" y="463" font-size="11">hospitals, health sites</text>
+          <text x="103" y="192" font-weight="600">Facility Management</text><text x="103" y="209" font-size="11">owners and managers</text>
+          <g font-size="11">
+            <text x="328" y="128" text-anchor="start">lifts, orders, referrals</text>
+            <text x="537" y="240" text-anchor="middle">bin night, lid alerts</text>
+            <text x="420" y="392" text-anchor="start">dumping reports, rounds</text>
+            <text x="220" y="392" text-anchor="end">custody, segregation</text>
+            <text x="103" y="240" text-anchor="middle">invoices, floor plans</text>
+          </g>
+        </g>
+      </svg>
+      <figcaption>The devices sit at the centre because every reading starts there. The ThinkOS platform wraps them, and each edition sends its own events in and gets the shared map, agent and reports back. The proposed <a href="#ecosystem" data-jump="oceanLid">ocean-plastic ThinkLid</a> makes the lid itself part of that story.</figcaption>
+    </figure>
+  </section>
+  <section class="panel"><h2>The devices every edition runs on</h2>
+    <div class="grid">
+      <div class="card" style="border-left-color:var(--lime)"><div class="row"><b>ThinkLid-Park</b><span class="grow"></span><span class="pill good">In service</span></div><span class="small">Reads fill level, temperature, lid opens and lifts from inside the lid. A lift shows as a drop in fill, which is the proof of service.</span></div>
+      <div class="card" style="border-left-color:var(--lime)"><div class="row"><b>ThinkLid</b><span class="grow"></span><span class="pill acc">Options from mid 2027</span></div><span class="small">The 240 L lid that carries the Sense board, and takes a lock, a camera and the other lid modules.</span></div>
+      <a class="card" href="#ecosystem" data-jump="oceanLid" style="border-left-color:var(--lime)"><div class="row"><b>Ocean-plastic ThinkLid</b><span class="grow"></span><span class="pill">Proposed</span></div><span class="small">The same lid, moulded from plastic recovered from rivers and beaches. Every edition can take it, so the bin itself becomes part of the sustainability report.</span></a>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Edition</th><th>What it takes from the devices</th></tr></thead><tbody>
+      <tr><td><b>Commercial</b></td><td>Fill for lift-or-skip runs; lifts as proof of service</td></tr>
+      <tr><td><b>Smart Home</b></td><td>Fill for the three household bins; lid open; emptied</td></tr>
+      <tr><td><b>Public</b></td><td>Fill on park and street bins; what the ranger sees in the AR view</td></tr>
+      <tr><td><b>Medical</b></td><td>Lid-open alerts on ward bins; lifts for chain of custody</td></tr>
+      <tr><td><b>Facility Management</b></td><td>Lifts and fill as the evidence invoices are checked against</td></tr>
+    </tbody></table></div></section>
+  <section class="panel" id="oceanLid"><div class="head"><h2>Ocean-plastic ThinkLids</h2><span class="pill">Proposed</span></div>
+    <p style="max-width:68ch">The lid is the one part of ThinkOS that is made of plastic and sits on every bin. Moulding it from plastic recovered from rivers and beaches turns the core device into a second product story: the bin measures waste, and the lid is made from it.</p>
+    <div class="grid ocean">
+      <div class="card"><span class="num small muted">1</span><b>Recovered</b><span class="small">Plastic taken out of rivers and off beaches, before it washes out to sea.</span></div>
+      <div class="card"><span class="num small muted">2</span><b>Sorted and pelletised</b><span class="small">Graded by polymer and batch, with a record of where it came from.</span></div>
+      <div class="card"><span class="num small muted">3</span><b>Moulded</b><span class="small">Made into ThinkLids by our moulding partner in Indonesia.</span></div>
+      <div class="card"><span class="num small muted">4</span><b>Fitted</b><span class="small">Goes on the bin with the Sense board, lock and camera options unchanged.</span></div>
+      <div class="card"><span class="num small muted">5</span><b>Recorded</b><span class="small">ThinkOS holds the batch against the lid serial and shows it in reports.</span></div>
+    </div>
+    <h3>Potential impacts</h3>
+    <div class="scroll"><table><thead><tr><th>Area</th><th>What could change, and what it depends on</th></tr></thead><tbody>
+      <tr><td><b>Plastic kept out of the sea</b></td><td>Each lid carries a known weight of recovered plastic, so a fleet adds up to tonnes<br><span class="small muted">Depends on: lid weight and the recovered share of each lid</span></td></tr>
+      <tr><td><b>Coastal communities</b></td><td>Paid collection work where waste services are thin<br><span class="small muted">Depends on: a collection program with audited payments</span></td></tr>
+      <tr><td><b>Virgin plastic</b></td><td>Less new plastic bought per lid<br><span class="small muted">Depends on: how much recovered material the mould can run</span></td></tr>
+      <tr><td><b>Tenders</b></td><td>Recycled content to score in council, hospital and facility bids<br><span class="small muted">Depends on: certified content, not a marketing claim</span></td></tr>
+      <tr><td><b>Sustainability+ reports</b></td><td>A line per client: lids fitted and plastic recovered<br><span class="small muted">Depends on: batch data reaching ThinkOS per serial</span></td></tr>
+      <tr><td><b>Product passports</b></td><td>Material lineage ready for the 2028 passport work<br><span class="small muted">Depends on: serial-level records from the moulder</span></td></tr>
+      <tr><td><b>Schools program</b></td><td>SmartLoop schools see the plastic they learn about come back as a lid<br><span class="small muted">Depends on: shared supply base in Indonesia</span></td></tr>
+      <tr><td><b>Brand</b></td><td>A reason to choose ThinkLid that rival lids do not have<br><span class="small muted">Depends on: proof that stands up to scrutiny</span></td></tr>
+    </tbody></table></div>
+    <h3>Size the impact</h3>
+    <p class="small muted">A ThinkLid weighs 1.5 kg. The recovered share is still a placeholder; enter the real figure and the totals update.</p>
+    <div class="grid ocalc">
+      <label class="small">Lids fitted<input id="ocN" type="number" min="0" step="100" value="10000" inputmode="numeric"></label>
+      <label class="small">Plastic per lid, kg <span class="pill good">confirmed</span><input id="ocW" type="number" min="0" step="0.1" value="1.5" inputmode="decimal"></label>
+      <label class="small">Recovered share, % <span class="pill warn">placeholder</span><input id="ocS" type="number" min="0" max="100" step="5" value="50" inputmode="numeric"></label>
+    </div>
+    <div class="ostats" id="ocOut" aria-live="polite"></div>
+    <h3>Certification</h3>
+    <p style="max-width:68ch">The claim will be certified. The scheme is not chosen yet. The closest fit found so far is the Ocean Bound Plastic Certification run by Zero Plastic Oceans, because two of its collection categories match this supply.</p>
+    <div class="scroll"><table><thead><tr><th>Our source</th><th>Matching category in that scheme</th></tr></thead><tbody>
+      <tr><td><b>Rivers</b></td><td>Waterways: plastic in a river or within 200 m of one</td></tr>
+      <tr><td><b>Beaches</b></td><td>Shoreline: plastic within 200 m of the shore</td></tr>
+    </tbody></table></div>
+    <ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:70ch">
+      <li>It audits the chain from collection through recycling to the finished product, by an independent certifier. Control Union offers it in Indonesia.</li>
+      <li>First step: ask the collector, the recycler and the moulder whether any of them already holds it.</li>
+      <li>Cost, audit time and whether Matter needs its own certificate to make the claim are not yet known.</li>
+    </ul>
+    <p class="small muted">Sources: <a href="https://indonesia.controlunion.com/en/certification-program/obp-ocean-bound-plastic-certification/" target="_blank" rel="noopener">Control Union Indonesia</a>, <a href="https://www.obpcert.org/" target="_blank" rel="noopener">obpcert.org</a>. Other schemes exist and have not been compared.</p>
+    <h3>What could go wrong</h3>
+    <ul class="small" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;max-width:70ch">
+      <li><b>Wording.</b> The plastic is recovered from rivers and beaches, not from the open sea. Saying exactly that is the safest claim. "Ocean-bound" has no single agreed definition, so any ocean label should name the certification behind it.</li>
+      <li><b>Durability.</b> A lid lives outdoors for years. Recovered plastic varies by batch, so sun, impact and hinge tests come before any volume order.</li>
+      <li><b>Colour and supply.</b> Recovered material limits colour choice, and supply has to keep up with reseller orders.</li>
+      <li><b>Carbon.</b> No carbon saving is claimed here. That needs a life-cycle assessment that includes shipping.</li>
+    </ul>
+    <p class="small muted">Scale, for context: one widely used estimate puts plastic reaching the ocean at about 1.7 million tonnes a year (<a href="https://ourworldindata.org/how-much-plastic-waste-ends-up-in-the-ocean" target="_blank" rel="noopener">Our World in Data</a>); an earlier study estimated 4.8 to 12.7 million tonnes for 2010 (<a href="https://www.sciencedaily.com/releases/2015/02/150212154422.htm" target="_blank" rel="noopener">Jambeck and others, 2015</a>). Definitions of ocean-bound plastic: <a href="https://cot.food.gov.uk/Position%20Paper%20on%20Ocean%20Bound%20Plastic%20%28OBP%29%20%E2%80%93%20Annex%20A" target="_blank" rel="noopener">UK Committee on Toxicity position paper</a>. Environmental claims need evidence; this is not legal advice.</p>
+  </section>
+  <section class="panel"><h2>The five editions</h2><div class="grid" id="ecoCards"></div></section>
+  <div id="ecoPanels" style="display:flex;flex-direction:column;gap:16px"></div>
+  <section class="panel"><div class="head"><h2>Roadmap by edition</h2><span class="row" style="gap:6px"><span class="rc ex">Exists today</span><span class="rc fx">Date set</span><span class="rc pr">Proposed</span></span></div>
+    <div class="scroll"><div class="lanes" id="lanes"></div></div>
+    <p class="small muted">Horizons follow the waste product roadmap of 8 October 2026. Proposed items have no confirmed date. The <a href="#patents">Patents tab</a> shows which patent family supports each element.</p></section>
+  <div class="foot"><img class="wm wl" src="img/matter-wordmark.svg" alt="Matter"><img class="wm wd" src="img/matter-wordmark-reverse.svg" alt="Matter"><sup class="reg">&reg;</sup><span>ThinkOS, ThinkLid and ThinkLid-Park. Waste patent families held by Xorro Pty Ltd.</span></div>
+</section>
+
+<section id="v-patents" class="col" hidden>
+  <div style="display:flex;flex-direction:column;gap:10px;padding-top:8px">
+    <h1>How the waste patents support the system</h1>
+    <p class="muted" style="max-width:64ch;font-size:17px">Three patent families held by Xorro Pty Ltd sit under ThinkOS. The first and broadest protects sensing, crew guidance and the AR view; the two newer ones protect the lid and household bin status.</p>
+  </div>
+  <p class="item warn small" style="border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:6px;padding:10px 12px">This is a subject-matter map built from the portfolio overview of 9 October 2026 and the extract of EP 2911954. It is not a legal opinion on claim scope, infringement or freedom to operate. Confirm with IP Sentinels before using it outside Matter.</p>
+  <section class="panel"><h2>The three waste families</h2>
+    <div class="grid" id="patTiles"></div>
+    <div id="patFams" style="display:flex;flex-direction:column;gap:12px"></div>
+  </section>
+  <section class="panel"><div class="head"><h2>Each element of the system, and what supports it</h2><span class="row" style="gap:6px"><span class="pill good">Granted</span><span class="pill warn">Accepted</span><span class="pill">Pending</span><span class="pill crit">No family found</span></span></div>
+    <div class="scroll"><table style="min-width:760px"><thead><tr><th style="width:24%">System element</th><th style="width:19%">Where it appears</th><th>Patent support</th><th style="width:15%">Strongest status</th></tr></thead><tbody id="patRows"></tbody></table></div>
+  </section>
+  <section class="panel"><h2>Support by edition</h2>
+    <div class="scroll"><table style="min-width:640px"><thead><tr><th style="width:24%">Edition</th><th>What the patents protect there</th><th style="width:26%">Families</th></tr></thead><tbody id="patEd"></tbody></table></div>
+  </section>
+  <div class="grid">
+    <section class="panel"><h3>Cover in the launch territories</h3>
+      <div class="scroll"><table><thead><tr><th>Territory</th><th>Monitoring family</th><th>Lid family</th></tr></thead><tbody id="patTerr"></tbody></table></div>
+      <p class="small muted">The bin status family is pending in Australia, Canada and the United States only.</p></section>
+    <section class="panel"><h3>Questions for IP Sentinels</h3>
+      <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px">
+        <li><b>Lock release.</b> The monitoring patent logs who attends a bin but has no lock. Using that identification to release a lock is the new step in Lock + Sense: is it worth a filing?</li>
+        <li><b>Agent and invoice checking.</b> No family covers agent ordering, confidence-gated decisions or checking invoices against sensor records. Are any of these patentable, or better kept as trade secrets?</li>
+        <li><b>Cameras and radar.</b> ThinkCam and ThinkRO are not in these families as far as the overview shows.</li>
+        <li><b>Term.</b> The monitoring family dates from October 2012, with the European term ending 14 October 2033. The AR divisional and the two newer families carry protection beyond that only for what they claim.</li>
+      </ul></section>
+  </div>
+  <div class="foot"><img class="wm wl" src="img/matter-wordmark.svg" alt="Matter"><img class="wm wd" src="img/matter-wordmark-reverse.svg" alt="Matter"><sup class="reg">&reg;</sup><span>ThinkOS, ThinkLid and ThinkLid-Park. Waste patent families held by Xorro Pty Ltd.</span></div>
+</section>
+
+<section id="v-field-view" class="col" hidden>
+  <div class="row"><h2 class="grow">AR field view: commercial laneway run</h2><span class="pill warn">Simulated readings</span></div>
+  <p class="muted" style="max-width:65ch">What a ranger, installer or reseller sees through the glasses on a Melbourne laneway run. Each bin is recognised, read and given one action. The run ends in the ThinkOS control centre.</p>
+  <div class="stage" id="stage">
+    <div class="world" id="world">
+      <img id="imgA" src="img/footpath.jpg" alt="Four commercial wheelie bins on a Melbourne footpath at night" class="on">
+      <img id="imgB" src="img/laneway.jpg" alt="Large commercial skip bins in a Melbourne laneway in front of a mural">
+      <div class="shade"></div>
+      <div id="marks"></div>
+    </div>
+    <div class="ret" id="ret"></div>
+    <div class="hud tl"><span class="chip">&#9632; ThinkOS field view</span></div>
+    <div class="hud tc"><span class="chip" id="hdg">212&deg; SW</span></div>
+    <div class="hud tr"><span class="chip" id="clk">Stop 1 · 05:52:11</span></div>
+    <div class="ovl" id="mapP"><div class="hd"><span>Run map &middot; laneway run</span><span>North up</span></div><div class="bd">
+      <svg viewBox="0 0 260 150" aria-hidden="true"><g fill="none" stroke="#8dffa8" stroke-width="1.2"><path d="M10 40H250M10 110H250" opacity=".5"/><path d="M130 40V110" stroke-dasharray="4 4" opacity=".5"/><path d="M28 75H96M150 75H236" stroke-dasharray="2 5"/></g>
+        <g fill="#8dffa8" font-family="IBM Plex Mono, monospace" font-size="9"><circle cx="28" cy="75" r="6"/><circle cx="50" cy="75" r="3"/><circle cx="72" cy="75" r="3"/><circle cx="96" cy="75" r="6"/><circle cx="150" cy="75" r="3"/><circle cx="178" cy="75" r="3"/><circle cx="206" cy="75" r="6"/><circle cx="236" cy="75" r="3"/>
+        <text x="20" y="62">C01</text><text x="88" y="62">C04</text><text x="198" y="62">C08</text><text x="14" y="134">Footpath</text><text x="150" y="134">Mural laneway</text><text x="118" y="30">You</text><path d="M130 86l-5 9h10z"/></g></svg>
+      <table><tbody><tr><th colspan="3">Today &middot; lift run</th></tr><tr><td>1</td><td>C01 Paper</td><td>88%</td></tr><tr><td>2</td><td>C04 Commingle</td><td>93%</td></tr><tr><td>3</td><td>C08 General</td><td>95%</td></tr><tr><th colspan="3">Issues</th></tr><tr><td colspan="3">Loose bag at C01</td></tr><tr><td colspan="3">C09 lid unlocked</td></tr></tbody></table></div></div>
+    <div class="ovl" id="doneP"><div class="hd"><span>Run complete &middot; laneway run</span><span id="doneT">07:16</span></div><div class="bd">
+      <div class="snaps"><div style="background-image:url(img/footpath.jpg)"></div><div style="background-image:url(img/laneway.jpg)"></div></div>
+      <div class="stats"><span>Scanned</span><b>8 bins</b><span>Lifted</span><b>3</b><span>Skipped, not due</span><b>5</b><span>Issues logged</span><b>2</b><span>New pins</span><b>3</b><span>Walked</span><b>140 m</b></div></div>
+      <div class="hd" style="border-top:1px solid var(--hud-dim);border-bottom:0"><span id="sendL">Sending to ThinkOS control centre</span><span id="sendP">0%</span></div><div class="prog"><i id="sendB"></i></div></div>
+    <div class="hud bb"><span class="chip">Commercial &middot; laneway run</span><span class="ticks" id="ticks"></span><span class="chip" id="cnt">0/8 scanned</span></div>
+    <button class="playbig" id="playbig" aria-label="Play the laneway run">&#9654;</button>
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="play">Play</button>
+    <input type="range" id="scrub" min="0" max="46" step="0.1" value="11.5" aria-label="Position in the run">
+    <button class="btn ghost" data-jump="0">Footpath</button><button class="btn ghost" data-jump="12.6">Laneway</button><button class="btn ghost" data-jump="24.2">Run map</button><button class="btn ghost" data-jump="36.2">Run complete</button>
+    <button class="btn ghost" id="full">Full screen</button>
+  </div>
+
+  <section class="panel"><div class="head"><h2>Laneway run summary</h2><span class="small muted">What arrives in the control centre</span></div>
+    <div class="grid">
+      <div class="tile"><span class="muted small">Bins scanned</span><b>8</b></div>
+      <div class="tile"><span class="muted small">Lifted today</span><b>3</b></div>
+      <div class="tile"><span class="muted small">Skipped, not due</span><b>5</b><span class="small muted">lifts avoided</span></div>
+      <div class="tile"><span class="muted small">Issues logged</span><b>2</b></div>
+    </div>
+    <div class="scroll"><table><thead><tr><th>Bin</th><th>Stream</th><th>Size</th><th>Fill</th><th>Lock</th><th>Action</th></tr></thead><tbody id="sumrows"></tbody></table></div>
+  </section>
+  <section class="panel"><h2>What ThinkOS does next</h2>
+    <div class="grid">
+      <div class="card"><b>7 bins have no lock</b><span class="small muted">The reseller agent drafts an order for 7 GravityLocks and books one install visit per bin.</span><a class="btn ghost" href="#agent">Open the reseller agent</a></div>
+      <div class="card"><b>3 bins were not on the map</b><span class="small muted">The blue wheelie bins at the laneway entrance are added to the Bin Map as new pins, free of charge.</span></div>
+      <div class="card"><b>3 haulers serve one footpath</b><span class="small muted">Four bins, three contractors. The site is flagged for a service review and invoice checks under Sustainability+.</span></div>
+      <div class="card"><b>2 issues need a person</b><span class="small muted">A notice about the loose bag and the unlocked lid is drafted for the site manager and waits for approval.</span></div>
+    </div></section>
+  <div class="foot"><img class="wm wl" src="img/matter-wordmark.svg" alt="Matter"><img class="wm wd" src="img/matter-wordmark-reverse.svg" alt="Matter"><sup class="reg">&reg;</sup><span>ThinkOS, ThinkLid and ThinkLid-Park. Waste patent families held by Xorro Pty Ltd.</span></div>
+</section>
+
+<section id="v-agent" class="appwrap" hidden><div class="appbar"><span>Reseller agent prototype, running inside this demo.</span><a href="https://claude.ai/artifact/6NzbygRBUzWsronQHfHtkh">Open it on its own</a></div></section>
+<section id="v-referrals" class="appwrap" hidden><div class="appbar"><span>Referral program prototype, running inside this demo.</span><a href="https://claude.ai/artifact/HZtqNsBrZA4VeYoRixxQ4X">Open it on its own</a></div></section>
+<section id="v-faqs" class="appwrap" hidden><div class="appbar"><span>Draft FAQs for the ThinkOS website.</span><a href="https://claude.ai/artifact/7t1ycnjx1bV3UrrsZW41eW">Open it on its own</a></div></section>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const VIEWS = [["overview","Overview"],["thinklid","ThinkLid"],["ecosystem","Ecosystem roadmap"],["patents","Patents"],["field-view","AR field view"],["agent","Reseller agent"],["referrals","Referral program"],["faqs","FAQs"]];
+const FRAMES = {agent:["agent.html","ThinkOS Reseller Agent"], referrals:["referral.html","ThinkOS Referral Program"], faqs:["faq.html","ThinkOS FAQs"]};
+let view = "overview";
+function route(){
+  const h = location.hash.replace("#", ""); view = VIEWS.some(v => v[0] === h) ? h : "overview";
+  $("#tabs").innerHTML = VIEWS.map(([k, n]) => `<a href="#${k}" ${k === view ? 'aria-current="page"' : ""}>${n}</a>`).join("");
+  VIEWS.forEach(([k]) => { $("#v-" + k).hidden = k !== view; });
+  if (FRAMES[view] && !$("#v-" + view + " iframe")) { const f = document.createElement("iframe"); f.src = FRAMES[view][0]; f.title = FRAMES[view][1]; $("#v-" + view).appendChild(f); }
+  if (view !== "field-view") pause();
+  $("#view").scrollTop = 0;
+}
+window.addEventListener("hashchange", route);
+
+/* ---------- field view data: every reading here is simulated ---------- */
+const BINS = [
+  {id:"C01",scene:"A",t:2.0,stream:"Paper / cardboard",size:"240L",fill:88,lock:"None",next:"Today",act:"lift",x:3,y:13,mx:12.5,my:42},
+  {id:"C02",scene:"A",t:3.8,stream:"Landfill",size:"240L",fill:46,lock:"Locked",next:"3 days",act:"skip",x:25.5,y:13,mx:40.5,my:45},
+  {id:"C03",scene:"A",t:5.6,stream:"Commingle",size:"240L",fill:61,lock:"None",next:"2 days",act:"skip",x:46.5,y:13,mx:52.7,my:45},
+  {id:"C04",scene:"A",t:7.4,stream:"Commingle",size:"240L",fill:93,lock:"None",next:"Today",act:"lift",x:78,y:13,mx:89,my:46},
+  {id:"C06",scene:"B",t:15.5,stream:"Commingle",size:"660L",fill:72,lock:"None",next:"1 day",act:"skip",x:3,y:9,mx:16,my:40},
+  {id:"C07",scene:"B",t:17.0,stream:"Mixed containers",size:"660L",fill:38,lock:"None",next:"4 days",act:"skip",x:22.3,y:9,mx:28,my:42},
+  {id:"C08",scene:"B",t:18.5,stream:"General",size:"1100L",fill:95,lock:"None",next:"Today",act:"lift",x:41.6,y:9,mx:44,my:44},
+  {id:"C09",scene:"B",t:20.0,stream:"General",size:"1100L",fill:57,lock:"None",note:"lid open",next:"2 days",act:"skip",x:61,y:9,mx:68,my:47}
+];
+const TAGS = [
+  {scene:"A",t:9.2,x:17,y:60,text:"Loose bag · issue logged"},
+  {scene:"B",t:14.0,x:3,y:33,text:"3 × 240L · not on Bin Map · pins added"},
+  {scene:"B",t:21.5,x:61,y:33,text:"Lid unlocked · issue logged"}
+];
+const T_END = 46, T_B = 12.5, T_MAP = 24, T_LIFT = 31, T_DONE = 36;
+const marks = $("#marks");
+marks.innerHTML = BINS.map(b => `<div class="bcard ${b.act}" data-id="${b.id}" style="left:${b.x}%;top:${b.y}%">
+    <div class="hd">${b.id} · ${b.stream} · ${b.size}</div>
+    <div class="bd"><span class="binico"><i style="height:${b.fill}%"></i></span><span class="pc">${b.fill}<small>%</small></span><span class="mt">Lock: ${b.lock}<br>Next: ${b.next}</span></div>
+    <div class="ac">${b.act === "lift" ? "▲ Lift now" : "Skip · not due"}</div></div>`).join("")
+  + TAGS.map((g, i) => `<div class="tag" data-i="${i}" style="left:${g.x}%;top:${g.y}%">${g.text}</div>`).join("");
+$("#ticks").innerHTML = BINS.map(() => "<i></i>").join("");
+$("#sumrows").innerHTML = BINS.map(b => `<tr><td class="num"><b>${b.id}</b></td><td>${b.stream}</td><td class="num">${b.size}</td><td><div class="row" style="gap:6px;flex-wrap:nowrap"><div class="meter ${b.fill >= 85 ? "hi" : ""}" style="flex:1"><i style="width:${b.fill}%"></i></div><span class="num small">${b.fill}%</span></div></td><td>${b.lock}${b.note ? ", " + b.note : ""}</td><td><span class="pill ${b.act === "lift" ? "crit" : "good"}">${b.act === "lift" ? "Lifted" : "Skipped"}</span></td></tr>`).join("");
+
+let t = 11.5, playing = false, last = 0, started = false;
+const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const pad = n => String(n).padStart(2, "0");
+function apply(){
+  const sc = t < T_B ? "A" : "B", stage = $("#stage");
+  $("#imgA").classList.toggle("on", sc === "A"); $("#imgB").classList.toggle("on", sc === "B");
+  const k = sc === "A" ? t / T_B : (Math.min(t, T_MAP) - T_B) / (T_MAP - T_B);
+  $("#world").style.transform = reduce ? "none" : `scale(${(1.06 - 0.05 * k).toFixed(4)}) translateX(${(1.2 - 2.4 * k).toFixed(2)}%)`;
+  const panel = (t >= T_MAP && t < T_LIFT) || t >= T_DONE;
+  stage.classList.toggle("dim", panel);
+  $("#mapP").classList.toggle("on", t >= T_MAP && t < T_LIFT); $("#doneP").classList.toggle("on", t >= T_DONE);
+  let scanned = 0, toLift = 0, focus = null; const lifted = t >= T_LIFT + 2;
+  BINS.forEach((b, i) => {
+    const seen = t >= b.t, el = marks.children[i]; if (seen) { scanned++; if (b.act === "lift") toLift++; }
+    el.classList.toggle("on", seen && b.scene === sc && !panel);
+    if (seen && b.scene === sc) focus = b;
+    const done = lifted && b.act === "lift"; el.classList.toggle("done", done);
+    el.querySelector(".ac").textContent = done ? "✓ Lifted" : b.act === "lift" ? "▲ Lift now" : "Skip · not due";
+    const tk = $("#ticks").children[i]; tk.className = seen ? (b.act === "lift" ? "l" : "s") : "";
+  });
+  TAGS.forEach((g, i) => marks.children[BINS.length + i].classList.toggle("on", t >= g.t && g.scene === sc && !panel));
+  const ret = $("#ret"); ret.classList.toggle("on", !!focus && !panel && t < T_LIFT);
+  if (focus) { ret.style.left = focus.mx + "%"; ret.style.top = focus.my + "%"; }
+  $("#cnt").textContent = t >= T_DONE ? "Serviced 3/3 · 5 skipped" : lifted ? `8/8 scanned · 3 lifted` : `${scanned}/8 scanned · ${toLift} to lift`;
+  const hd = sc === "A" ? 212 + Math.round(4 * Math.sin(t)) : 41 + Math.round(4 * Math.sin(t));
+  $("#hdg").textContent = pad(hd).padStart(3, "0") + "° " + (sc === "A" ? "SW" : "NE");
+  const s = Math.floor(t); $("#clk").textContent = (sc === "A" ? "Stop 1 · 05:52:" : "Stop 2 · 07:14:") + pad(s % 60);
+  const p = Math.max(0, Math.min(1, (t - T_DONE - 1) / 8)); $("#sendB").style.width = (p * 100) + "%"; $("#sendP").textContent = Math.round(p * 100) + "%";
+  $("#sendL").textContent = p >= 1 ? "✓ Sent to ThinkOS control centre" : "Sending to ThinkOS control centre";
+  $("#scrub").value = t; $("#play").textContent = playing ? "Pause" : t >= T_END ? "Replay" : "Play";
+  $("#playbig").hidden = playing || started;
+}
+function tick(now){ if (!playing) return; t += Math.min(0.1, (now - last) / 1000); last = now; if (t >= T_END) { t = T_END; playing = false; } apply(); if (playing) requestAnimationFrame(tick); }
+function play(){ if (!started || t >= T_END) t = 0; started = true; playing = true; last = performance.now(); apply(); requestAnimationFrame(tick); }
+function pause(){ if (playing) { playing = false; apply(); } }
+$("#play").addEventListener("click", () => playing ? pause() : play());
+$("#playbig").addEventListener("click", play);
+$("#scrub").addEventListener("input", e => { pause(); started = true; t = +e.target.value; apply(); });
+document.addEventListener("click", e => { const j = e.target.closest("[data-jump]"); if (j) { pause(); started = true; t = +j.dataset.jump; apply(); } });
+$("#full").addEventListener("click", () => { const s = $("#stage"); try { (document.fullscreenElement ? document.exitFullscreen() : s.requestFullscreen()).catch(() => {}); } catch (e) {} });
+/* ---------- ecosystem roadmap ---------- */
+const A = id => "https://claude.ai/artifact/" + id;
+const ED = [
+  {k:"commercial", n:"ThinkOS Commercial", who:"Waste operators, resellers and businesses with commercial bins.",
+   adds:"Lift-or-skip runs from fill level, locks that stop misuse, and reseller ordering by agent.",
+   hw:"ThinkLid-Park fill sensing and GravityLock; ThinkCam for 660 L and 1,100 L bins; ThinkRO for roll-offs.",
+   built:[["Laneway AR field view","Demo","#field-view"],["Reseller agent","Prototype","#agent"],["Referral program","Prototype","#referrals"],["ThinkOS Operations Map","Prototype",A("QUo37BVHBtAa9puHQarrbJ")]],
+   next:["Australian launch with two pilot resellers, February 2027","United States and Canada, May or June 2027","ThinkLid and ThinkCam options, mid 2027"]},
+  {k:"home", n:"ThinkOS Smart Home", who:"Households with council kerbside bins.",
+   adds:"A home-screen widget: next collection, bin night, emptied, and a lid-open alert, with fill for general, recycling and FOGO.",
+   hw:"240 L ThinkLid with level sensing and a hands-free UWB lock.",
+   built:[["ThinkLid widget for Apple HomeView","Design",A("9sLNAN3MrkWJhVvpnVDLfQ")],["HomeView widget deck","Deck",A("Bbn7zXrxNuKHQaAUQYMYDV")],["UWB lock, level sensing and Apple Home roadmap","Spec",A("STqHMwEEvNBRuPy12etZNn")]],
+   next:["App-based UWB pilot through the ThinkOS app (proposed)","Matter certification of the lock (proposed)","Lid appears in Apple Home, targeted early 2028 (proposed)"]},
+  {k:"public", n:"ThinkOS Public", who:"Councils, rangers and parks crews.",
+   adds:"Ranger rounds through AR glasses, public dumping reports and a council desk, alongside park and street bins.",
+   hw:"ThinkLid-Park on public-place bins, AR/AI reporting glasses, asset plates.",
+   built:[["Floreat AR field view, oval run","Video","https://youtu.be/j9XcsD-L20w"],["CityBrowser illegal dump tracking","Prototype",A("BPTwFp7ivgd3WKYFXW3XSR")],["Ranger Quick Report","Prototype",A("GH9e4x4Z5Lfki4zLcCwt94")],["Mann Park sensor pilot","Plan",A("9PzKX129GsEMCWKECUus3p")],["Mosman Park bin survey, 30 Sept 2026","Survey",A("919MJAbqyqH6smpgukHEAb")],["Town of Cambridge ROI dashboard","Dashboard",A("J3ceUWoGSjpkBL9LxDGFQk")]],
+   next:["AR/AI reporting glasses, May 2027","Ranger rounds in public spaces, second half of 2027 (proposed)","Night security mode for dumping hot spots (proposed)"]},
+  {k:"medical", n:"ThinkOS Medical", who:"Hospitals and health facilities.",
+   adds:"Ward and zone plans, segregation of clinical, sharps and cytotoxic streams, and chain of custody from bedside to treatment.",
+   hw:"ThinkLid-Park and locks on clinical-stream bins; electronic locks for secure streams.",
+   built:[["Hospital campus, in ThinkOS Service Lines","Prototype",A("2Q8EMVcTYNV4sYPC6qeFJk")]],
+   next:["Compliance register and chain of custody, first half of 2027 (proposed)","Locked secure streams with a custody record per lift (proposed)","First hospital pilot site: to be chosen"]},
+  {k:"fm", n:"ThinkOS Facility Management", who:"Building owners and facility managers.",
+   adds:"Every bin on its floor plan, invoices checked against what the bins recorded, and sustainability reports.",
+   hw:"ThinkLid-Park and locks in waste rooms; ThinkCam on large bins and compactors.",
+   built:[["Buildings and facilities, in ThinkOS Service Lines","Prototype",A("2Q8EMVcTYNV4sYPC6qeFJk")],["ThinkOS: Pays for Itself","Page",A("4SUNExyLZrYWfJAT6iqQG4")],["AIRS invoice checking","In build",""]],
+   next:["NABERS Waste and Scope 3 export, first half of 2027 (proposed)","Accounting links and a customer portal (proposed)","Reporting frameworks, second half of 2027 (proposed)"]}
+];
+const HZ = [["Now","Q4 2026"],["Next","H1 2027"],["Later","H2 2027"],["Then","2028 on"]];
+// lane, horizon index, kind (ex = exists today, fx = date set, pr = proposed), text
+const RM = [
+  ["core",0,"ex","ThinkLid-Park devices in service"],["core",0,"ex","Backend on Supabase, in build"],["core",0,"ex","AIRS invoice checking, in build"],["core",1,"fx","Australian launch, February 2027"],["core",1,"pr","Jev decisions in shadow mode"],["core",0,"ex","Recycled-plastic lid in specification"],["core",1,"pr","River and beach plastic supply, certified"],["core",2,"pr","First ocean-plastic ThinkLid batch"],["core",3,"pr","Lid material lineage on product passports"],["core",2,"pr","Open API and in-country data"],["core",3,"pr","Models learn from confirmed findings"],
+  ["commercial",0,"ex","Laneway field view, reseller agent, referrals"],["commercial",1,"fx","Pilot resellers go live, February 2027"],["commercial",1,"fx","United States and Canada, May or June 2027"],["commercial",2,"fx","ThinkLid and ThinkCam options, mid 2027"],["commercial",2,"pr","Loyalty tiers and referral payouts"],["commercial",3,"pr","Reseller systems order directly"],
+  ["home",0,"ex","HomeView widget design; UWB lock spec"],["home",1,"pr","App-based UWB pilot"],["home",2,"pr","Matter certification of the lock"],["home",3,"pr","Lid in Apple Home, early 2028"],["home",3,"pr","Household kerbside platform"],
+  ["public",0,"ex","Floreat oval run; dump tracking; Ranger Quick Report"],["public",0,"ex","Mann Park sensor pilot"],["public",1,"fx","AR/AI reporting glasses, May 2027"],["public",2,"pr","Ranger rounds in public spaces"],["public",2,"pr","Night security mode"],
+  ["medical",0,"ex","Hospital campus prototype"],["medical",1,"pr","Compliance and chain of custody"],["medical",1,"pr","Choose the first hospital pilot"],["medical",2,"pr","Locked secure streams with custody record"],
+  ["fm",0,"ex","Buildings prototype; AIRS in build"],["fm",1,"pr","NABERS Waste and Scope 3 export"],["fm",1,"pr","Accounting links and customer portal"],["fm",2,"pr","Reporting frameworks"],["fm",2,"pr","Contractor scorecards with evidence"]
+];
+(function thinklid(){
+  const root = document.getElementById("v-thinklid"), red = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // lid colours
+  const SRC = {eye:"img/thinklid-lid.webp", shred:"img/thinklid-shred.webp", bottle:"img/thinklid-bottle.webp"}, lid = document.getElementById("tlLid");
+  const ALT = {eye:"ThinkLid-Eye seen from below, with the camera and grille at the centre", shred:"ThinkLid Shred seen from above, with a paper slot", bottle:"ThinkLid Bottle seen from above, with a round star-cut opening"};
+  Object.values(SRC).forEach(u => { const i = new Image(); i.src = u; });
+  function setC(c){ root.querySelectorAll("#tlSw button").forEach(b => b.setAttribute("aria-pressed", b.dataset.c === c ? "true" : "false"));
+    root.querySelectorAll(".tl-col").forEach(b => b.classList.toggle("on", b.dataset.c === c));
+    lid.alt = ALT[c]; root.querySelector(".tl-stage").classList.toggle("plain", c !== "eye");
+    if (red) { lid.src = SRC[c]; return; } lid.classList.add("sw"); setTimeout(() => { lid.src = SRC[c]; lid.classList.remove("sw"); }, 220); }
+  root.querySelectorAll("#tlSw button").forEach(b => b.addEventListener("click", () => setC(b.dataset.c)));
+  root.querySelectorAll(".tl-col").forEach(b => b.addEventListener("click", () => { setC(b.dataset.c); root.querySelector(".tl-hero").scrollIntoView({ behavior: red ? "auto" : "smooth", block: "start" }); }));
+  root.querySelector('.tl-col[data-c="eye"]').classList.add("on");
+  // exploded view hotspots
+  let h = 0, hTouched = false;
+  const setH = i => { h = i; root.querySelectorAll("[data-h]").forEach(e => e.classList.toggle("on", +e.dataset.h === i)); };
+  root.querySelectorAll("[data-h]").forEach(e => e.addEventListener("click", () => { hTouched = true; setH(+e.dataset.h); }));
+  setH(0);
+  // capture sequence
+  const bin = document.getElementById("tlBin"), tag = document.getElementById("tlTag"), prog = document.getElementById("tlProg"), play = document.getElementById("tlPlay");
+  const TAGS = ["Lid open","Lid closing","Lid shut · dark","Flash","Recognising","Reported"], DUR = [1400,1300,1300,1100,1900,2600];
+  let st = 0, on = !red, timer = null;
+  function setS(i){ st = i; bin.dataset.s = i; tag.textContent = TAGS[i]; prog.style.width = (i / 5 * 100) + "%";
+    root.querySelectorAll("#tlSteps li").forEach(l => l.classList.toggle("on", +l.dataset.s === i)); }
+  function tick(){ clearTimeout(timer); if (!on) return; timer = setTimeout(() => { if (!root.hidden) setS((st + 1) % 6); tick(); }, DUR[st]); }
+  play.addEventListener("click", () => { on = !on; play.textContent = on ? "Pause" : "Play"; tick(); });
+  root.querySelectorAll("#tlSteps li").forEach(l => l.addEventListener("click", () => { on = false; play.textContent = "Play"; clearTimeout(timer); setS(+l.dataset.s); }));
+  if (red) { play.textContent = "Play"; setS(5); } else { setS(0); tick(); }
+  setInterval(() => { if (!root.hidden && !hTouched && !red) setH((h + 1) % 4); }, 3200);
+  // builds
+  const B = [
+    {life:"about 6 yrs", lifeV:6, data:"about 1 MB", dataV:1, en:"about 0.03 mAh", enV:.03, rows:[["Where the AI runs","On the lid"],["What leaves the bin","Labels; a thumbnail on request"],["Result","Under 100 ms on the lid"],["Odour layer","Carbon filter and grille"],["Model updates","Over the air, per lid"],["Best for","Food and organics bins, odour-sensitive sites, weak coverage"]]},
+    {life:"about 6 yrs", lifeV:6, data:"about 1 MB", dataV:1, en:"about 0.03 mAh", enV:.03, rows:[["Where the AI runs","On the lid"],["What leaves the bin","Labels; a thumbnail on request"],["Result","Under 100 ms on the lid"],["Odour layer","None"],["Model updates","Over the air, per lid"],["Best for","Recycling and general waste, longest battery headroom"]]},
+    {life:"about 2.5 yrs", lifeV:2.5, data:"about 30 MB", dataV:30, en:"about 0.28 mAh", enV:.28, rows:[["Where the AI runs","AIVision in ThinkOS"],["What leaves the bin","One image of about 1 MP per capture"],["Result","Under 60 s, depending on coverage"],["Odour layer","Either build"],["Model updates","Central and immediate"],["Best for","Lowest unit cost, a full image audit trail, contractor disputes"]]}
+  ];
+  function setB(i){ const b = B[i];
+    root.querySelectorAll("#tlSeg button").forEach(x => x.setAttribute("aria-pressed", +x.dataset.b === i ? "true" : "false"));
+    [["0", b.life, b.lifeV / 6], ["1", b.data, b.dataV / 30], ["2", b.en, b.enV / .28]].forEach(([k, t, v]) => { document.getElementById("tlM" + k).textContent = t; document.getElementById("tlB" + k).style.width = Math.max(3, v * 100) + "%"; });
+    document.getElementById("tlRows").innerHTML = b.rows.map(r => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td></tr>`).join(""); }
+  root.querySelectorAll("#tlSeg button").forEach(x => x.addEventListener("click", () => setB(+x.dataset.b))); setB(0);
+  // reveal on scroll
+  if ("IntersectionObserver" in window && !red) { root.classList.add("rvready");
+    const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .08 });
+    root.querySelectorAll(".rv").forEach(e => io.observe(e));
+    setTimeout(() => root.querySelectorAll(".rv").forEach(e => { const r = e.getBoundingClientRect(); if (r.top < innerHeight && r.bottom > 0) e.classList.add("in"); }), 1200); }
+})();
+(function ocean(){
+  const f = id => Math.max(0, parseFloat(document.getElementById(id).value) || 0);
+  const nf = (v, d) => v.toLocaleString("en-AU", { maximumFractionDigits: d });
+  function run(){
+    const n = f("ocN"), w = f("ocW"), sh = Math.min(100, f("ocS")), kg = n * w * sh / 100;
+    document.getElementById("ocOut").innerHTML = [[nf(kg / 1000, 1) + " t", "recovered plastic in the fleet"], [nf(w * sh / 100, 2) + " kg", "recovered plastic per lid"], [nf(n * w / 1000, 1) + " t", "total lid plastic"]].map(([a, b]) => `<div><b class="num">${a}</b><span class="small muted">${b}</span></div>`).join("");
+  }
+  ["ocN","ocW","ocS"].forEach(id => document.getElementById(id).addEventListener("input", run)); run();
+  document.addEventListener("click", e => { const a = e.target.closest("[data-jump]"); if (!a) return; e.preventDefault(); const el = document.getElementById(a.dataset.jump); if (el) el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); });
+})();
+(function eco(){
+  const pill = s => `<span class="pill ${s === "Demo" || s === "Prototype" ? "acc" : s === "In build" ? "good" : ""}">${s}</span>`;
+  $("#ecoCards").innerHTML = ED.map(e => `<a class="card" href="#ecosystem" data-eco="${e.k}"><b>${e.n}</b><span class="small muted">${e.who}</span><span class="small">${e.built.length} ${e.built.length === 1 ? "build" : "builds"} so far</span></a>`).join("");
+  $("#ecoPanels").innerHTML = ED.map(e => `<section class="panel" id="eco-${e.k}"><div class="head"><h2>${e.n}</h2><span class="small muted">${e.who}</span></div>
+    <p><b>What it adds.</b> ${e.adds}</p><p class="small"><b>Hardware.</b> ${e.hw}</p>
+    <div class="grid"><div><h3 style="margin-bottom:8px">Built so far</h3><div style="display:flex;flex-direction:column;gap:8px">${e.built.map(b => `<div class="row" style="flex-wrap:nowrap;align-items:flex-start">${pill(b[1])}<span>${b[2] ? `<a href="${b[2]}">${b[0]}</a>` : b[0]}</span></div>`).join("")}</div></div>
+    <div><h3 style="margin-bottom:8px">Next</h3><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px">${e.next.map(x => `<li>${x}</li>`).join("")}</ul></div></div></section>`).join("");
+  const lanes = [["core","ThinkOS core"]].concat(ED.map(e => [e.k, e.n.replace("ThinkOS ", "")]));
+  $("#lanes").innerHTML = `<div class="lh"></div>` + HZ.map((h, i) => `<div class="lh ${i ? "" : "now"}"><b>${h[0]}</b><span>${h[1]}</span></div>`).join("")
+    + lanes.map(([k, n]) => `<div class="ln ${k === "core" ? "core" : ""}">${n}</div>` + HZ.map((h, i) => `<div class="lc ${i ? "" : "now"}">${RM.filter(r => r[0] === k && r[1] === i).map(r => `<span class="rc ${r[2]}">${r[3]}</span>`).join("")}</div>`).join("")).join("");
+  document.addEventListener("click", e => { const c = e.target.closest("[data-eco]"); if (!c) return; e.preventDefault(); const t = document.getElementById("eco-" + c.dataset.eco); if (t) t.scrollIntoView({behavior: reduce ? "auto" : "smooth", block:"start"}); });
+})();
+
+/* ---------- patents: from the portfolio overview of 9 Oct 2026 and the EP 2911954 extract ---------- */
+const FAM = [
+  {k:"mon", ref:"P3322", n:"Distributed Monitoring and Waste Management", prod:"ThinkOS", pri:"Priority October 2012; European term to 14 October 2033", g:12, a:0, p:4,
+   what:"Fill sensing inside the bin with at least three fill states, sensors facing outward, lid-open detection, near-field identification of collectors, per-bin guidance for crews, an augmented reality view on glasses or a head-up display, and alerts.",
+   where:"Granted: Australia (4), United States (2), Europe as a Unitary Patent across 18 states (EP 2911954), China, India, New Zealand (2), Singapore. Pending: Canada, a Chinese divisional, a European divisional on the AR invention, Hong Kong."},
+  {k:"lid", ref:"P3262", n:"Bin Sensor (embedded lid)", prod:"ThinkLid", pri:"Priority January 2020", g:1, a:2, p:4,
+   what:"A bin sensor built into the lid. Scope here is taken from the title only.",
+   where:"Granted: United States (12,673,816). Accepted: Australia (2021213034), New Zealand (791177). Pending: Europe, China, India, Singapore."},
+  {k:"sta", ref:"P3818", n:"Bin Status System and Method", prod:"ThinkOS, household bins", pri:"Priority 23 August 2022", g:0, a:0, p:3,
+   what:"A system and method for bin status, filed for the household platform. Scope here is taken from the title only.",
+   where:"Pending: Australia, Canada, United States."}
+];
+const fam = k => FAM.find(f => f.k === k);
+// element, where it appears, support text, strongest status
+const PEL = [
+  ["Fill sensing in the bin","Every edition; the fill bars and percentages","Monitoring family: an in-lid sensor reporting at least three fill states (claim 1). Lid family: the sensor embedded in the lid.","Granted"],
+  ["Lift now, or skip","AR field view; collection dispatch","Monitoring family: for a bin near the collector, indicate empty, needs maintenance or no action (claim 14), and route to full bins while skipping the rest.","Granted"],
+  ["AR field view","Laneway run; Floreat oval run; reporting glasses","Monitoring family: fill level or an empty instruction shown as augmented reality on glasses or a head-up display. The European divisional on the AR invention is pending.","Granted"],
+  ["Lid-open alerts","Laneway issue log; Smart Home widget; hospital wards","Monitoring family: a door-open sensor, and a signal when the lid is open when it should not be (claims 6 and 15).","Granted"],
+  ["Proof of attendance","Proof of service; install proof; custody records","Monitoring family: a near-field identifier logs a collector's arrival, departure and time at the bin (claims 1, 4 and 7).","Granted"],
+  ["Bin Map and control centre","The core; run summary; reseller views","Monitoring family: a management system showing bins on an electronic map, each bin sending its identity, with polling on demand.","Granted"],
+  ["Alerts","Predictions; issue logs","Monitoring family: moved bin, fire, pollution hot spots, contaminated contents and priority collection.","Granted"],
+  ["ThinkLid hardware","Smart Home; ThinkLid options from mid 2027","Lid family: granted in the United States, accepted in Australia and New Zealand.","Granted"],
+  ["Household bin status","Smart Home widget; household platform","Bin status family, pending in three countries. Lid family for the hardware.","Pending"],
+  ["Lock release (Lock + Sense)","GravityLock with ThinkOS sensing","The monitoring patent senses and identifies but has no lock. The lock is the partner's product; releasing it on a recognised identifier is new.","No family found"],
+  ["Reseller agent, Jev decisions, loyalty, referrals","Reseller agent; referral program","Nothing in the three families describes these.","No family found"],
+  ["Invoice checking (AIRS)","Facility Management; Sustainability+","The sensing and attendance records it relies on are in the monitoring family. The checking itself is not in the extract.","No family found"],
+  ["Cameras and radar","ThinkCam; ThinkRO","Not in these families as far as the overview shows.","No family found"]
+];
+const PED = [
+  ["ThinkOS Commercial","Fill sensing, lift-or-skip guidance, the AR field view, attendance records and alerts.",["mon","lid"]],
+  ["ThinkOS Smart Home","The lid itself, lid-open alerts and household bin status.",["lid","sta","mon"]],
+  ["ThinkOS Public","Ranger guidance and the AR view, lid-open detection, and outward-facing sensing for pollution hot spots.",["mon"]],
+  ["ThinkOS Medical","Lid-open alerts on ward bins, attendance logs behind chain of custody, and contaminated-contents alerts.",["mon"]],
+  ["ThinkOS Facility Management","Fill states and attendance records, which are the evidence invoice checking and reports are built on.",["mon"]]
+];
+const PTERR = [["Australia","Granted","Accepted"],["New Zealand","Granted","Accepted"],["Singapore","Granted","Pending"],["United States","Granted","Granted"],["Canada","Pending","None listed"]];
+(function pat(){
+  const cls = s => s === "Granted" ? "good" : s === "Accepted" ? "warn" : s === "Pending" ? "" : "crit";
+  const tot = k => FAM.reduce((a, f) => a + f[k], 0);
+  $("#patTiles").innerHTML = [["Waste families", FAM.length],["Granted", tot("g")],["Accepted", tot("a")],["Pending", tot("p")]].map(([l, v]) => `<div class="tile"><span class="muted small">${l}</span><b>${v}</b></div>`).join("");
+  $("#patFams").innerHTML = FAM.map(f => `<div class="card" style="border-left-color:${f.g ? "var(--good)" : "var(--muted)"}"><div class="row"><b>${f.n}</b><span class="grow"></span><span class="pill num">${f.ref}</span></div>
+    <span class="small muted">${f.prod}. ${f.pri}.</span>
+    <div class="row" style="gap:6px">${f.g ? `<span class="pill good">Granted ${f.g}</span>` : ""}${f.a ? `<span class="pill warn">Accepted ${f.a}</span>` : ""}<span class="pill">Pending ${f.p}</span></div>
+    <span>${f.what}</span><span class="small muted">${f.where}</span></div>`).join("");
+  $("#patRows").innerHTML = PEL.map(r => `<tr><td><b>${r[0]}</b></td><td class="small">${r[1]}</td><td>${r[2]}</td><td><span class="pill ${cls(r[3])}">${r[3]}</span></td></tr>`).join("");
+  $("#patEd").innerHTML = PED.map(r => `<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2].map(k => `<span class="pill ${fam(k).g ? "good" : ""}" style="margin:0 4px 4px 0">${fam(k).ref} ${k === "mon" ? "monitoring" : k === "lid" ? "lid" : "bin status"}</span>`).join("")}</td></tr>`).join("");
+  $("#patTerr").innerHTML = PTERR.map(r => `<tr><td>${r[0]}</td><td><span class="pill ${cls(r[1])}">${r[1]}</span></td><td><span class="pill ${cls(r[2])}">${r[2]}</span></td></tr>`).join("");
+})();
+
+route(); apply();
+</script>
+</body>
+</html>

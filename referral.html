@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThinkOS Referral Program</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a public program page that leads into a member portal. One reading column on the
+   public side; the portal is a console of panels with state carried by pills and stripes. */
+:root{
+  --bg:#F3F7F2; --surface:#ffffff; --sunk:#EEF6EB; --ink:#13241B; --muted:#55655B; --line:#D5E2D8;
+  --accent:#205C40; --accent-ink:#ffffff; --accent-soft:#E3F1DF;
+  --good:#1d7a46; --warn:#9a5b00; --crit:#b3261e; --warn-soft:#fbefd9; --crit-soft:#fbe6e4; --good-soft:#e1f3e7;
+  --display:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Poppins",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ color-scheme:dark;
+    --bg:#0A1510; --surface:#0F1E17; --sunk:#13281E; --ink:#E6F1EA; --muted:#A3B5A9; --line:#21382C;
+    --accent:#5BCB3F; --accent-ink:#0A1510; --accent-soft:#16301F;
+    --good:#5fcf8d; --warn:#e6ad4f; --crit:#f08a80; --warn-soft:#3a2d12; --crit-soft:#3d1c19; --good-soft:#14301f; }
+}
+:root[data-theme="dark"]{ color-scheme:dark;
+  --bg:#0A1510; --surface:#0F1E17; --sunk:#13281E; --ink:#E6F1EA; --muted:#A3B5A9; --line:#21382C;
+  --accent:#5BCB3F; --accent-ink:#0A1510; --accent-soft:#16301F;
+  --good:#5fcf8d; --warn:#e6ad4f; --crit:#f08a80; --warn-soft:#3a2d12; --crit-soft:#3d1c19; --good-soft:#14301f; }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:32px;line-height:1.12} h2{font-size:20px} h3{font-size:15px}
+p{margin:0}
+a{color:var(--accent)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)} .small{font-size:13px}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{max-width:1040px;margin:0 auto;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--ink)}
+.mark{width:22px;height:22px;border-radius:5px;background:var(--accent);display:inline-block;position:relative}
+.mark::after{content:"";position:absolute;left:5px;right:5px;top:6px;height:3px;background:var(--accent-ink);box-shadow:0 5px 0 var(--accent-ink)}
+.grow{flex:1}
+nav{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.tabs{max-width:1040px;margin:0 auto;padding:0 8px;display:flex;gap:2px;overflow-x:auto}
+.tabs a{padding:11px 10px;text-decoration:none;color:var(--muted);white-space:nowrap;border-bottom:3px solid transparent;font-weight:500}
+.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+.notice{max-width:1040px;margin:12px auto 0;padding:0 16px}
+.notice div{background:var(--warn-soft);border-left:4px solid var(--warn);padding:8px 12px;border-radius:4px;font-size:13px}
+main{max-width:1040px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+main.narrow{max-width:720px}
+.hero{display:flex;flex-direction:column;gap:14px;padding:20px 0 4px}
+.hero p{font-size:17px;color:var(--muted);max-width:56ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel > .head{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.two{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:860px){.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.tile{background:var(--sunk);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:2px}
+.tile b{font-family:var(--mono);font-size:22px;font-weight:500}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.item{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.item.warn{border-left-color:var(--warn)} .item.crit{border-left-color:var(--crit)} .item.good{border-left-color:var(--good)} .item.acc{border-left-color:var(--accent)}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)} .pill.acc{background:var(--accent-soft);color:var(--accent)}
+.btn{background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;min-height:40px;text-decoration:none;display:inline-flex;align-items:center}
+.btn.big{padding:12px 22px;font-size:16px}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.danger{background:transparent;color:var(--crit);border-color:var(--crit)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.steps li{display:flex;gap:14px;align-items:flex-start}
+.steps svg{flex:none;width:28px;height:28px;stroke:var(--accent);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-top:2px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:13px;font-weight:600}
+select,input[type=text],input[type=email]{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:9px 10px;min-height:40px;width:100%}
+.check{display:flex;gap:10px;align-items:flex-start}
+.check input{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--accent)}
+.err{color:var(--crit);font-size:13px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap}
+td.r,th.r{text-align:right}
+.meter{height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;min-width:90px;flex:1}
+.meter i{display:block;height:100%;background:var(--accent)}
+.link{font-family:var(--mono);font-size:13px;background:var(--sunk);padding:6px 8px;border-radius:4px;overflow-wrap:anywhere;flex:1;min-width:0}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;font-size:14px;z-index:20;max-width:90vw}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <a class="brand" href="#home"><span class="mark" aria-hidden="true"></span>ThinkOS Referral Program</a>
+  <div class="grow"></div><span id="who" class="small muted"></span>
+</div></header>
+<nav aria-label="Sections"><div class="tabs" id="tabs"></div></nav>
+<div class="notice"><div id="notice">Prototype. Reward amounts and the promotion discount are placeholders, sample referrals are invented and no email is sent. Checking whether your registration can be saved.</div></div>
+<main id="app"></main>
+<div id="toast" class="toast" hidden role="status"></div>
+<script>
+"use strict";
+const CL = (() => { try { return window.claude || (window.parent !== window ? window.parent.claude : null); } catch (e) { return null; } })();
+
+const $ = s => document.querySelector(s);
+const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const pct = p => Math.round(p * 100) + "%";
+function toast(m){ const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 3200); }
+
+const COUNTRY = {
+  AU:{name:"Australia",cur:"AUD",locale:"en-AU",open:true,from:"February 2027"},
+  NZ:{name:"New Zealand",cur:"NZD",locale:"en-NZ",open:true,from:"date to be set"},
+  SG:{name:"Singapore",cur:"SGD",locale:"en-SG",open:true,from:"date to be set"},
+  MY:{name:"Malaysia",cur:"MYR",locale:"en-MY",open:true,from:"date to be set"},
+  US:{name:"United States",cur:"USD",locale:"en-US",open:false,from:"May or June 2027"},
+  CA:{name:"Canada",cur:"CAD",locale:"en-CA",open:false,from:"May or June 2027"}
+};
+const REF = { rates:{"Bin Map":4,"Operations":8,"Sustainability+":12}, perCustomer:100, perYear:200, payAfter:90, buyWithin:15, promo:10 }; // placeholders
+const STAGE = {signed:["Signed up","acc"], potential:["Potential paid","warn"], review:["In review","warn"], paid:["Paid","good"], lapsed:["Lapsed","crit"], rejected:["Not eligible","crit"]};
+const CHANNELS = [["link","Copy and share"],["email","Email"],["linkedin","LinkedIn"]];
+const BASE = "https://thinkos.example/r/"; // placeholder address until the program site exists
+
+const S = {
+  view:"home", me:null, err:{}, form:{first:"",last:"",country:"",email:"",role:"reseller",terms:false,marketing:false},
+  members:[
+    {id:"m1",first:"Sample",last:"Reseller",org:"Solo",country:"AU",email:"referrals@solo.example",role:"reseller",code:"SOLO-7Q2K",verified:true,bank:true,marketing:true,promos:["SOLO10-A41","SOLO10-B77","SOLO10-C02"],sample:true},
+    {id:"m2",first:"Sample",last:"Reseller",org:"Premier Waste",country:"AU",email:"referrals@premier.example",role:"reseller",code:"PREM-3M9D",verified:true,bank:false,marketing:false,promos:["PREM10-K15","PREM10-L62"],sample:true}
+  ],
+  referrals:[
+    {mid:"m1",name:"Quarry Road Transfer Station",plan:"Operations",devices:60,stage:"paid",days:112,channel:"email",paidMonth:"October 2026"},
+    {mid:"m1",name:"Tidewater Hotel Group",plan:"Sustainability+",devices:140,stage:"review",days:93,channel:"linkedin"},
+    {mid:"m1",name:"Brightwell Primary School",plan:"Bin Map",devices:10,stage:"potential",days:21,channel:"link"},
+    {mid:"m1",name:"Kestrel Business Park",plan:"Operations",devices:0,stage:"signed",days:6,channel:"email"},
+    {mid:"m2",name:"Orchard Lane Village",plan:"Bin Map",devices:15,stage:"review",days:95,channel:"link"},
+    {mid:"m2",name:"Dockside Cold Storage",plan:"Operations",devices:0,stage:"signed",days:12,channel:"email"}
+  ]
+};
+const me = () => S.members.find(m => m.id === S.me);
+const me2 = id => S.members.find(m => m.id === id);
+const money = (n, c) => { const k = COUNTRY[c || (me() ? me().country : "AU")]; return new Intl.NumberFormat(k.locale, {style:"currency",currency:k.cur}).format(n); };
+const month = (add) => { const d = new Date(); d.setMonth(d.getMonth() + (add || 0)); return d.toLocaleDateString("en-AU", {month:"long", year:"numeric"}); };
+function calc(mid){
+  let used = 0;
+  const rows = S.referrals.filter(r => r.mid === mid).map(r => {
+    const counts = ["potential","review","paid"].includes(r.stage);
+    const counted = counts ? Math.max(0, Math.min(r.devices, REF.perCustomer, REF.perYear - used)) : 0; used += counted;
+    return Object.assign({}, r, {counted, reward:counted * REF.rates[r.plan], src:r});
+  });
+  const sum = k => rows.filter(r => r.stage === k).reduce((a, r) => a + r.reward, 0);
+  return {rows, used, earned:sum("paid"), pending:sum("potential") + sum("review")};
+}
+/* ---------- saved data: one member document and one referrals document per signed-in viewer ---------- */
+const P = {db:null, uid:null, admin:false, state:"checking", chain:{}};
+const REFKEYS = ["name","plan","devices","stage","days","channel","paidMonth","reason"];
+const MEMKEYS = ["first","last","org","country","email","role","code","verified","bank","marketing","promos"];
+const pick = (o, keys) => { const r = {}; keys.forEach(k => { if (o[k] !== undefined) r[k] = o[k]; }); return r; };
+function write(path, body){
+  if (!P.db) return;
+  P.chain[path] = (P.chain[path] || Promise.resolve()).then(() => P.db.doc(path).set(body)).catch(() => { if (P.state !== "failed") { P.state = "failed"; note(); toast("That change could not be saved. It will be lost when the page reloads."); } });
+}
+const live = m => m && m.live;
+function saveMember(m){ if (live(m)) write("members/" + m.id, pick(m, MEMKEYS)); }
+function saveRefs(mid){ const m = S.members.find(x => x.id === mid); if (live(m)) write("referrals/" + mid, {list:S.referrals.filter(r => r.mid === mid).map(r => pick(r, REFKEYS))}); }
+function adopt(id, body, list){
+  if (S.members.some(m => m.id === id)) return;
+  S.members.push(Object.assign({promos:[]}, pick(body, MEMKEYS), {id, live:true}));
+  (Array.isArray(list) ? list : []).forEach(r => S.referrals.push(Object.assign({plan:"Operations",devices:0,stage:"signed",days:0,channel:"link"}, pick(r, REFKEYS), {mid:id})));
+}
+function note(){
+  const el = $("#notice"); if (!el) return;
+  const base = "Prototype. Reward amounts and the promotion discount are placeholders, sample referrals are invented and no email is sent. ";
+  el.textContent = base + (P.state === "on" ? "Your own registration and referrals are saved between visits." : P.state === "checking" ? "Checking whether your registration can be saved." : P.state === "failed" ? "Saving has stopped working in this view, so new changes will be lost on reload." : "Nothing is saved in this view: it needs a signed-in member of the owner's organisation with Contributor access.");
+}
+async function boot(){
+  try {
+    if (!(CL && CL.use)) throw 0;
+    const got = await Promise.race([Promise.all([CL.use("db"), CL.use("user")]), new Promise((_, no) => setTimeout(no, 10000))]);
+    const db = got[0], user = got[1]; if (!db || !user) throw 0;
+    const uid = await user.id(); if (!uid) throw 0;
+    P.db = db; P.uid = uid; P.admin = !!(user.canEdit && await user.canEdit());
+    const load = Promise.all([db.doc("members/" + uid).get(), db.doc("referrals/" + uid).get()]);
+    const mine = await Promise.race([load, new Promise((_, no) => setTimeout(no, 10000))]);
+    if (mine[0].exists) { adopt(uid, mine[0].data(), mine[1].exists ? mine[1].data().list : []); if (!S.me) S.me = uid; }
+    if (P.admin) {
+      const all = await Promise.all([db.collection("members").get(), db.collection("referrals").get()]);
+      const lists = {}; all[1].docs.forEach(d => lists[d.id] = (d.data() || {}).list);
+      all[0].docs.forEach(d => adopt(d.id, d.data(), lists[d.id]));
+    }
+    P.state = "on";
+  } catch (e) { P.state = "off"; }
+  note(); render();
+}
+const linkFor = (m, ch) => BASE + m.code + (ch === "link" ? "" : "?c=" + ch);
+
+/* ---------- public pages ---------- */
+const ICON = {
+  form:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.8h6V4M9 10h6M9 14h6M9 18h3"/></svg>',
+  share:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.9l7.6-3.8M8.2 13.1l7.6 3.8"/></svg>',
+  reward:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 13h18M12 9v11M12 9c-3 0-4.500-1.200-4.500-2.700S9 3.500 12 9c3-5.500 4.500-4.200 4.500-2.700S15 9 12 9z"/></svg>'
+};
+function vHome(){
+  return `<div class="hero"><h1>Earn rewards by referring ThinkOS</h1>
+    <p>Recommend ThinkOS bin locks, fill sensors and the Bin Map to businesses you know, and we will reward you for the active devices you refer.</p>
+    <div class="row"><a class="btn big" href="#join">Join now</a><button class="btn ghost" data-act="sample">Open the sample portal</button></div></div>
+  <section class="panel"><h2>How it works</h2>
+    <ol class="steps">
+      <li>${ICON.form}<span><b>Join.</b> Fill in <a href="#join">this form</a> with your name and email address.</span></li>
+      <li>${ICON.share}<span><b>Share.</b> Send your unique link. The businesses you refer get ${REF.promo}% off their dashboard subscription for the first year.</span></li>
+      <li>${ICON.reward}<span><b>Earn.</b> Get a cash reward for each eligible device on the accounts you refer.</span></li>
+    </ol></section>
+  <div class="two">
+    <section class="panel"><div class="head"><h3>What you earn for each active device</h3><span class="pill warn">Placeholder amounts</span></div>
+      <div class="scroll"><table><thead><tr><th>Customer's plan</th><th class="r">Per device</th><th class="r">Most each</th></tr></thead><tbody>
+      ${Object.keys(REF.rates).map(k => `<tr><td>${k}</td><td class="r num">${money(REF.rates[k], "AU")}</td><td class="r num">${money(REF.rates[k] * REF.perCustomer, "AU")}</td></tr>`).join("")}</tbody></table></div>
+      <p class="small muted">Australian rates. Rewards vary by country. For example, an Operations customer with 40 active devices earns you ${money(40 * REF.rates.Operations, "AU")}.</p></section>
+    <section class="panel"><h3>What makes a referral count</h3>
+      <p>The business must be new to ThinkOS and must:</p>
+      <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">
+        <li>sign up using your referral link or code</li>
+        <li>buy at least the five-lock starter pack within ${REF.buyWithin} days</li>
+        <li>pay in full for at least ${REF.payAfter} days</li></ul>
+      <p class="small muted">Rewards cover the first ${REF.perCustomer} devices of each customer you refer, up to ${REF.perYear} devices a calendar year.</p></section>
+  </div>
+  <section class="panel"><div class="row"><span class="grow"><b>Ready to start?</b> Joining takes a minute. Add payment details early so you can be paid as soon as a referral qualifies.</span><a class="btn" href="#join">Join now</a></div></section>`;
+}
+function vJoin(){
+  const f = S.form, e = S.err, er = k => e[k] ? `<span class="err" id="e-${k}">${esc(e[k])}</span>` : "";
+  return `<div class="two">
+  <section class="panel"><h2>Register</h2>
+    <form id="joinForm" novalidate style="display:flex;flex-direction:column;gap:12px">
+      <div class="field"><label for="first">First name</label><input type="text" id="first" autocomplete="given-name" value="${esc(f.first)}">${er("first")}</div>
+      <div class="field"><label for="last">Last name</label><input type="text" id="last" autocomplete="family-name" value="${esc(f.last)}">${er("last")}</div>
+      <div class="field"><label for="country">Country</label><select id="country"><option value="">Choose a country</option>${Object.keys(COUNTRY).map(k => `<option value="${k}" ${f.country === k ? "selected" : ""} ${COUNTRY[k].open ? "" : "disabled"}>${COUNTRY[k].name}${COUNTRY[k].open ? "" : " (from " + COUNTRY[k].from + ")"}</option>`).join("")}</select>${er("country")}</div>
+      <div class="field"><label for="email">Email</label><input type="email" id="email" autocomplete="email" value="${esc(f.email)}">${er("email")}</div>
+      <div class="field"><label for="role">I am joining as</label><select id="role"><option value="reseller" ${f.role === "reseller" ? "selected" : ""}>A ThinkOS reseller</option><option value="customer" ${f.role === "customer" ? "selected" : ""}>A ThinkOS customer</option></select></div>
+      <label class="check"><input type="checkbox" id="terms" ${f.terms ? "checked" : ""}><span>By signing up you agree to the Terms and Conditions <span class="muted">(to be written)</span></span></label>${er("terms")}
+      <label class="check"><input type="checkbox" id="marketing" ${f.marketing ? "checked" : ""}><span>I would like to receive marketing and promotional emails for this referral program</span></label>
+      <button class="btn">Register</button>
+      <p class="small muted">Already a member? <a href="#portal" data-act="sample">Open the sample portal</a></p>
+    </form></section>
+  <section class="panel"><h2>Welcome to the ThinkOS Referral Program</h2>
+    <p class="muted">Your bank account must be in the country you choose, because rewards are paid in that country's currency.</p>
+    <ol class="steps">
+      <li>${ICON.form}<span>Register and verify your email address.</span></li>
+      <li>${ICON.share}<span>Get your link and promotion codes straight away.</span></li>
+      <li>${ICON.reward}<span>Track every referral from sign-up to payment.</span></li></ol></section></div>`;
+}
+function vVerify(){
+  const m = me(); if (!m) return vNeed();
+  return `<section class="panel"><h2>Verify your email</h2>
+    <p>In the live program a verification email goes to <b>${esc(m.email)}</b>, and the portal opens once the address is confirmed.</p>
+    <div class="item warn"><span class="small">This prototype sends no email. Use the button to continue as if the address had been verified.</span></div>
+    <div class="row"><button class="btn" data-act="verify">Continue to the portal</button><a class="btn ghost" href="#join">Change my details</a></div></section>`;
+}
+function vNeed(){ return `<section class="panel"><h2>Sign in to see your portal</h2><p class="muted">Join the program, or look around with a sample account.</p><div class="row"><a class="btn" href="#join">Join now</a><button class="btn ghost" data-act="sample">Open the sample portal</button></div></section>`; }
+
+/* ---------- member portal ---------- */
+function vPortal(){
+  const m = me(); if (!m) return vNeed(); if (!m.verified) return vVerify();
+  const c = calc(m.id), n = k => c.rows.filter(r => r.stage === k).length;
+  return `<section class="panel"><div class="head"><h2>Hello ${esc(m.first)}</h2><span class="pill ${m.bank ? "good" : "warn"}">${m.bank ? "Payment details added" : "Payment details needed"}</span></div>
+    <div class="grid">
+      <div class="tile"><span class="muted small">Signed up</span><b>${n("signed")}</b></div>
+      <div class="tile"><span class="muted small">Potential paid</span><b>${n("potential") + n("review")}</b><span class="small muted">${money(c.pending)} if they qualify</span></div>
+      <div class="tile"><span class="muted small">Paid referrals</span><b>${n("paid")}</b></div>
+      <div class="tile"><span class="muted small">Rewards earned</span><b>${money(c.earned)}</b></div>
+    </div>
+    <div class="row"><span class="small">Devices counted this year</span><div class="meter"><i style="width:${pct(clamp(c.used / REF.perYear, 0, 1))}"></i></div><span class="num small">${c.used} of ${REF.perYear}</span></div>
+    ${c.used >= REF.perYear ? `<div class="item warn"><span class="small">You have reached this year's limit. ${m.role === "reseller" ? "Ask Matter IO about a higher limit for your reseller account." : "If you expect to refer more, talk to us about the Reseller Program."}</span></div>` : ""}
+    ${m.bank ? "" : `<div class="item warn"><b>Add your payment details</b><span class="small">A reward can only be paid once they are on file. <a href="#payments">Go to Payments</a></span></div>`}
+  </section>
+  <section class="panel"><div class="head"><h3>Share your link</h3><span class="small muted">Each channel has its own link so you can see which works best. All of them are tied to your account.</span></div>
+    ${CHANNELS.map(([k, label]) => `<div class="row"><span class="pill" style="min-width:110px;text-align:center">${label}</span><span class="link">${esc(linkFor(m, k))}</span><button class="btn ghost" data-act="copy" data-v="${esc(linkFor(m, k))}">Copy</button></div>`).join("")}
+    <div class="item"><b>A message you can send</b><span class="small" id="msg">We use ThinkOS to manage our bins: locks, fill sensors and a live map of every bin. If you sign up with my link you get ${REF.promo}% off the dashboard subscription for the first year: ${esc(linkFor(m, "email"))}</span><div class="row"><button class="btn ghost" data-act="copymsg">Copy message</button></div></div>
+    <p class="small muted">The link address is a placeholder until the program site is live. Your referral code is <b class="num">${m.code}</b>.</p>
+  </section>
+  <section class="panel"><div class="head"><h3>Recent referrals</h3><a href="#referrals" class="small">All referrals</a></div>${c.rows.slice(0, 3).map(rowCard).join("") || empty()}</section>`;
+}
+const empty = () => `<p class="muted">No referrals yet. Share your link to get started.</p><div class="row"><button class="btn ghost" data-act="add">Add a sample referral</button></div>`;
+function rowCard(x){
+  const i = S.referrals.indexOf(x.src), st = STAGE[x.stage];
+  const txt = x.stage === "signed" ? `Signed up ${x.days} days ago. No purchase yet; the starter pack must be bought by day ${REF.buyWithin}.`
+    : x.stage === "lapsed" ? `No purchase within ${REF.buyWithin} days, so this referral does not count.`
+    : x.stage === "rejected" ? `Reviewed and found not eligible${x.reason ? ": " + esc(x.reason) : ""}.`
+    : `${x.plan}, ${x.devices} active devices, paying for ${x.days} days. ${x.counted} devices count: ${money(x.reward)}${x.stage === "paid" ? " paid in " + x.paidMonth : x.stage === "review" ? ", being reviewed by Matter IO" : " at day " + REF.payAfter}.`;
+  return `<div class="item ${st[1]}"><div class="row"><b>${esc(x.name)}</b><span class="grow"></span><span class="pill ${st[1]}">${st[0]}</span></div><span class="small muted">${txt} Came through your ${x.channel === "link" ? "shared" : x.channel === "linkedin" ? "LinkedIn" : "email"} link.</span>
+    ${["signed","potential"].includes(x.stage) ? `<div class="row"><button class="btn ghost" data-act="fwd" data-i="${i}">Move forward 30 days</button></div>` : ""}</div>`;
+}
+function vReferrals(){
+  const m = me(); if (!m) return vNeed(); if (!m.verified) return vVerify();
+  const c = calc(m.id);
+  return `<section class="panel"><div class="head"><h2>Your referrals</h2><button class="btn ghost" data-act="add">Add a sample referral</button></div>
+    <p class="small muted">Signed up: joined with your link. Potential paid: purchased, not yet at ${REF.payAfter} days. In review: reached ${REF.payAfter} days and being checked. Paid: reward sent.</p>
+    ${c.rows.map(rowCard).join("") || `<p class="muted">No referrals yet.</p>`}</section>`;
+}
+function vCodes(){
+  const m = me(); if (!m) return vNeed(); if (!m.verified) return vVerify();
+  return `<section class="panel"><div class="head"><h2>Promotion codes</h2><span class="pill warn">Placeholder discount</span></div>
+    <p>Each code gives one referred business ${REF.promo}% off its dashboard subscription for the first year. The business enters it when it signs up.</p>
+    ${m.promos.map(p => `<div class="row"><span class="link">${p}</span><span class="pill">Unused</span><button class="btn ghost" data-act="copy" data-v="${p}">Copy</button></div>`).join("")}
+    <div class="row"><button class="btn ghost" data-act="morecodes" ${m.promos.length >= 10 ? "disabled" : ""}>Request more codes</button><span class="small muted">A code cannot be added after the business has signed up.</span></div></section>`;
+}
+function vPayments(){
+  const m = me(); if (!m) return vNeed(); if (!m.verified) return vVerify();
+  const c = calc(m.id), k = COUNTRY[m.country];
+  return `<div class="two"><section class="panel"><div class="head"><h2>Payments</h2><span class="pill ${m.bank ? "good" : "warn"}">${m.bank ? "Ready to be paid" : "Details needed"}</span></div>
+    <p>Rewards are paid monthly in ${k.cur} to a bank account in ${k.name}, after a referral has been a paying customer for more than ${REF.payAfter} days. A month with no newly qualified referrals has no payment.</p>
+    <div class="item ${m.bank ? "good" : "warn"}"><b>Bank details</b><span class="small">Bank details are entered with the payments provider, not on this site. This prototype only records whether that step is done.</span>
+      <div class="row"><button class="btn ${m.bank ? "ghost" : ""}" data-act="bank">${m.bank ? "Mark as not added" : "Mark as added"}</button></div></div>
+    <p class="small muted">Bank fees and currency conversion are set by your bank. To change your payment country, contact Matter IO support.</p></section>
+  <section class="panel"><h3>Payment history</h3>
+    <div class="scroll"><table><thead><tr><th>Month</th><th>Referral</th><th class="r">Devices</th><th class="r">Amount</th></tr></thead><tbody>
+    ${c.rows.filter(r => r.stage === "paid").map(r => `<tr><td>${r.paidMonth}</td><td>${esc(r.name)}</td><td class="r num">${r.counted}</td><td class="r num">${money(r.reward)}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">No payments yet.</td></tr>`}
+    </tbody></table></div><p class="small muted">Waiting to qualify: ${money(c.pending)}.</p></section></div>`;
+}
+function vProfile(){
+  const m = me(); if (!m) return vNeed(); if (!m.verified) return vVerify();
+  return `<section class="panel"><h2>Profile</h2>
+    <form id="profileForm" style="display:flex;flex-direction:column;gap:12px;max-width:420px">
+      <div class="field"><label for="pfirst">First name</label><input type="text" id="pfirst" value="${esc(m.first)}"></div>
+      <div class="field"><label for="plast">Last name</label><input type="text" id="plast" value="${esc(m.last)}"></div>
+      <div class="field"><label for="pemail">Contact email</label><input type="email" id="pemail" value="${esc(m.email)}"><span class="small muted">Status emails go here. You still sign in with the address you joined with.</span></div>
+      <label class="check"><input type="checkbox" id="pmarketing" ${m.marketing ? "checked" : ""}><span>Send me marketing and promotional emails for this program</span></label>
+      <div class="row"><button class="btn">Save changes</button><button type="button" class="btn ghost" data-act="signout">Sign out</button></div>
+    </form>
+    ${m.sample ? "" : `<div class="item crit"><b>Delete my registration</b><span class="small">Removes your membership, codes and referrals${m.live ? " from the saved data" : ""}. This cannot be undone.</span><div class="row"><button type="button" class="btn danger" data-act="forget">Delete my registration</button></div></div>`}
+    <p class="small muted">${m.live ? "Saved between visits. " : m.sample ? "Sample account. " : "Not saved in this view. "}Joined as ${m.role === "reseller" ? "a ThinkOS reseller" : "a ThinkOS customer"}${m.org ? " (" + esc(m.org) + ")" : ""} in ${COUNTRY[m.country].name}.</p></section>`;
+}
+
+/* ---------- program admin (Matter IO) ---------- */
+function vReview(){
+  const q = S.referrals.filter(r => r.stage === "review"), run = {};
+  S.referrals.filter(r => r.stage === "paid" && r.paidMonth === month(1)).forEach(r => { const row = calc(r.mid).rows.find(x => x.src === r); (run[r.mid] = run[r.mid] || []).push(row); });
+  return `<section class="panel"><div class="head"><h2>Program admin</h2><span class="pill acc">Matter IO staff view</span></div>
+    ${P.state === "on" && !P.admin ? `<div class="item warn"><span class="small">You are seeing sample members and your own record only. Saved registrations from other people are visible to the owner and Editors.</span></div>` : ""}
+    <p class="muted">Referrals that have reached ${REF.payAfter} paid days wait here for review before any reward is queued.</p>
+    <div class="grid">
+      <div class="tile"><span class="muted small">Members</span><b>${S.members.length}</b></div>
+      <div class="tile"><span class="muted small">Awaiting review</span><b>${q.length}</b></div>
+      <div class="tile"><span class="muted small">Members missing payment details</span><b>${S.members.filter(m => !m.bank).length}</b></div>
+    </div></section>
+  <section class="panel"><h3>Review queue</h3>
+    ${q.map(r => { const m = S.members.find(x => x.id === r.mid), row = calc(r.mid).rows.find(x => x.src === r), i = S.referrals.indexOf(r);
+      return `<div class="item warn"><div class="row"><b>${esc(r.name)}</b><span class="grow"></span><span class="num">${money(row.reward, m.country)}</span></div>
+        <span class="small muted">Referred by ${esc(m.org || m.first + " " + m.last)} (${m.code}). ${r.plan}, ${r.devices} active devices, ${row.counted} count after limits. Paying for ${r.days} days.</span>
+        <div class="row"><button class="btn" data-act="approve" data-i="${i}">Approve for ${month(1)} payment</button><button class="btn danger" data-act="reject" data-i="${i}">Not eligible</button></div></div>`; }).join("") || `<p class="muted">Nothing is waiting for review.</p>`}
+  </section>
+  <section class="panel"><h3>Payment run for ${month(1)}</h3>
+    <div class="scroll"><table><thead><tr><th>Member</th><th>Referrals</th><th class="r">Amount</th><th>Payment details</th></tr></thead><tbody>
+    ${Object.keys(run).map(mid => { const m = S.members.find(x => x.id === mid); return `<tr><td>${esc(m.org || m.first + " " + m.last)}</td><td>${run[mid].map(r => esc(r.name)).join(", ")}</td><td class="r num">${money(run[mid].reduce((a, r) => a + r.reward, 0), m.country)}</td><td><span class="pill ${m.bank ? "good" : "warn"}">${m.bank ? "Ready" : "Held until added"}</span></td></tr>`; }).join("") || `<tr><td colspan="4" class="muted">No rewards approved for this run yet.</td></tr>`}
+    </tbody></table></div></section>
+  <section class="panel"><h3>Members</h3>
+    <div class="scroll"><table><thead><tr><th>Member</th><th>Type</th><th>Country</th><th>Code</th><th class="r">Referrals</th><th class="r">Devices this year</th><th>Email verified</th></tr></thead><tbody>
+    ${S.members.map(m => { const c = calc(m.id); return `<tr><td>${esc(m.org || m.first + " " + m.last)}</td><td>${m.role === "reseller" ? "Reseller" : "Customer"}</td><td>${COUNTRY[m.country].name}</td><td class="num">${m.code}</td><td class="r num">${c.rows.length}</td><td class="r num">${c.used} of ${REF.perYear}</td><td><span class="pill ${m.verified ? "good" : "warn"}">${m.verified ? "Yes" : "Pending"}</span></td></tr>`; }).join("")}
+    </tbody></table></div></section>`;
+}
+
+const RENDER = {home:vHome, join:vJoin, verify:vVerify, portal:vPortal, referrals:vReferrals, codes:vCodes, payments:vPayments, profile:vProfile, review:vReview};
+const NARROW = {home:1, verify:1};
+function render(){
+  const m = me(), inPortal = m && m.verified;
+  const tabs = inPortal ? [["portal","Dashboard"],["referrals","Referrals"],["codes","Promotion codes"],["payments","Payments"],["profile","Profile"],["home","About the program"],["review","Program admin"]]
+                        : [["home","About the program"],["join","Join"],["portal","Member portal"],["review","Program admin"]];
+  $("#tabs").innerHTML = tabs.map(([k, n]) => `<a href="#${k}" ${k === S.view ? 'aria-current="page"' : ""}>${n}</a>`).join("");
+  $("#who").textContent = m ? "Signed in as " + (m.org || m.first + " " + m.last) : "";
+  const app = $("#app"); app.className = NARROW[S.view] ? "narrow" : ""; app.innerHTML = RENDER[S.view]();
+}
+function route(){ const h = location.hash.replace("#", ""); S.view = RENDER[h] ? h : "home"; render(); }
+function go(h){ if (location.hash === "#" + h) route(); else location.hash = h; }
+function readForm(){ const g = id => $("#" + id); if (!g("first")) return; Object.assign(S.form, {first:g("first").value, last:g("last").value, country:g("country").value, email:g("email").value, role:g("role").value, terms:g("terms").checked, marketing:g("marketing").checked}); }
+function code(first){ const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s = ""; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return (first.replace(/[^a-z]/gi, "").toUpperCase().slice(0, 4) || "REF") + "-" + s; }
+
+document.addEventListener("submit", e => {
+  e.preventDefault();
+  if (e.target.id === "joinForm") {
+    readForm(); const f = S.form, er = {};
+    if (!f.first.trim()) er.first = "Enter your first name.";
+    if (!f.last.trim()) er.last = "Enter your last name.";
+    if (!f.country) er.country = "Choose the country your bank account is in.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) er.email = "Enter an email address like name@company.com.";
+    else if (S.members.some(m => m.email.toLowerCase() === f.email.trim().toLowerCase())) er.email = "That address has already joined. Open the portal instead.";
+    if (!f.terms) er.terms = "Tick the box to agree to the Terms and Conditions.";
+    S.err = er; if (Object.keys(er).length) { render(); const k = Object.keys(er)[0]; const el = $("#" + k); if (el) el.focus(); return; }
+    const c = code(f.first.trim()), canSave = P.state === "on" && !S.members.some(m => m.id === P.uid), id = canSave ? P.uid : "m" + (S.members.length + 1);
+    S.members.push({id, first:f.first.trim(), last:f.last.trim(), org:"", country:f.country, email:f.email.trim(), role:f.role, code:c, verified:false, bank:false, marketing:f.marketing, promos:[c.split("-")[0] + "10-" + c.split("-")[1].slice(0, 3), c.split("-")[0] + "10-" + c.split("-")[1].slice(1) + "2"], live:canSave});
+    saveMember(me2(id)); saveRefs(id);
+    S.me = id; S.form = {first:"",last:"",country:"",email:"",role:"reseller",terms:false,marketing:false}; go("verify");
+  }
+  if (e.target.id === "profileForm") {
+    const m = me(), em = $("#pemail").value.trim();
+    if (!$("#pfirst").value.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { toast("Enter a first name and a valid email address."); return; }
+    m.first = $("#pfirst").value.trim(); m.last = $("#plast").value.trim(); m.email = em; m.marketing = $("#pmarketing").checked; saveMember(m); render(); toast(live(m) ? "Profile saved." : "Profile saved for this visit.");
+  }
+});
+function copy(v, what){ try { navigator.clipboard.writeText(v).then(() => toast(what + " copied."), () => toast("Copy was blocked. Select the text and copy it by hand.")); } catch (e) { toast("Copy was blocked. Select the text and copy it by hand."); } }
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return; const act = b.dataset.act, m = me();
+  if (act === "sample") { e.preventDefault(); S.me = "m1"; go("portal"); return; }
+  if (act === "verify") { m.verified = true; saveMember(m); go("portal"); toast("Welcome. Your link and codes are ready."); return; }
+  if (act === "signout") { S.me = null; go("home"); return; }
+  if (act === "forget") {
+    const id = m.id; S.members = S.members.filter(x => x.id !== id); S.referrals = S.referrals.filter(r => r.mid !== id); S.me = null;
+    if (m.live && P.db) { ["members/", "referrals/"].forEach(k => { P.chain[k + id] = (P.chain[k + id] || Promise.resolve()).then(() => P.db.doc(k + id).delete()).catch(() => {}); }); }
+    go("home"); toast("Your registration and referrals were deleted."); return;
+  }
+  if (act === "copy") return copy(b.dataset.v, "Link");
+  if (act === "copymsg") return copy($("#msg").textContent, "Message");
+  if (act === "bank") { m.bank = !m.bank; saveMember(m); render(); return; }
+  if (act === "morecodes") { m.promos.push(m.code.split("-")[0] + "10-" + (100 + m.promos.length * 37)); saveMember(m); render(); toast("Code added. In the live program, requests go to Matter IO."); return; }
+  if (act === "add") { const names = ["Fernhill Community Centre","Saltbush Brewery","Glenmore Sports Club","Riverbend Distribution","Wattle Park Shopping Centre"]; const n = S.referrals.filter(r => r.mid === m.id).length; S.referrals.push({mid:m.id, name:names[n % names.length], plan:"Operations", devices:0, stage:"signed", days:0, channel:CHANNELS[n % 3][0]}); saveRefs(m.id); render(); return; }
+  if (act === "fwd") { const x = S.referrals[+b.dataset.i]; x.days += 30; if (x.stage === "signed") { x.stage = "potential"; x.devices = 25; x.days = 30; } if (x.stage === "potential" && x.days >= REF.payAfter) x.stage = "review"; saveRefs(x.mid); render(); return; }
+  if (act === "approve") { const x = S.referrals[+b.dataset.i]; x.stage = "paid"; x.paidMonth = month(1); saveRefs(x.mid); render(); toast("Approved and added to the " + month(1) + " payment run."); return; }
+  if (act === "reject") { const x = S.referrals[+b.dataset.i]; x.stage = "rejected"; x.reason = "the business was already a ThinkOS customer"; saveRefs(x.mid); render(); return; }
+});
+document.addEventListener("input", e => { if (e.target.closest("#joinForm")) readForm(); });
+window.addEventListener("hashchange", route);
+route();
+boot();
+</script>
+</body>
+</html>
